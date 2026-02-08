@@ -1,117 +1,54 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
-const cheerio = require("cheerio");
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const {
-  KAKAO_REST_API_KEY,
+  ALADIN_TTB_KEY,
   NOTION_TOKEN,
   NOTION_DATABASE_ID,
   PORT = 3000,
 } = process.env;
 
-const YES24_BASE = "https://www.yes24.com";
-
-// ─── 도서 검색 (카카오 우선, 없으면 Yes24 fallback) ─────────
+// ─── 알라딘 도서 검색 ───────────────────────────────────────
 app.get("/api/search", async (req, res) => {
   const { query } = req.query;
   if (!query) return res.status(400).json({ error: "query 파라미터가 필요합니다" });
 
   try {
-    // 카카오 API 사용
-    if (KAKAO_REST_API_KEY) {
-      const url = new URL("https://dapi.kakao.com/v3/search/book");
-      url.searchParams.set("query", query);
-      url.searchParams.set("size", "10");
+    const url = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx`
+      + `?ttbkey=${ALADIN_TTB_KEY}`
+      + `&Query=${encodeURIComponent(query)}`
+      + `&QueryType=Keyword`
+      + `&MaxResults=10`
+      + `&start=1`
+      + `&SearchTarget=Book`
+      + `&output=js`
+      + `&Version=20131101`
+      + `&Cover=Big`;
 
-      const response = await fetch(url, {
-        headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
-      });
+    const response = await fetch(url);
+    const data = await response.json();
 
-      if (response.ok) {
-        const data = await response.json();
-        const books = data.documents.map((doc) => ({
-          title: doc.title.replace(/<[^>]*>/g, ""),
-          authors: doc.authors,
-          publisher: doc.publisher,
-          thumbnail: doc.thumbnail,
-          isbn: doc.isbn,
-          publishedDate: doc.datetime ? doc.datetime.split("T")[0] : "",
-          url: doc.url,
-        }));
-        return res.json({ books });
-      }
-    }
+    const books = (data.item || []).map((item) => ({
+      title: item.title,
+      authors: item.author ? item.author.split(", ").map((a) => a.replace(/\s*\(.*?\)\s*/g, "").trim()).filter(Boolean) : [],
+      publisher: item.publisher,
+      thumbnail: item.cover,
+      isbn: item.isbn13 || item.isbn,
+      publishedDate: item.pubDate,
+      url: item.link,
+    }));
 
-    // Yes24 fallback
-    const books = await searchYes24(query);
     res.json({ books });
   } catch (err) {
-    console.error("검색 에러:", err);
+    console.error("알라딘 API 에러:", err);
     res.status(500).json({ error: "도서 검색 중 오류가 발생했습니다" });
   }
 });
-
-async function searchYes24(query) {
-  const searchUrl = `${YES24_BASE}/Product/Search?domain=ALL&query=${encodeURIComponent(query)}&page=1&size=8`;
-  const searchRes = await fetch(searchUrl, {
-    headers: { "User-Agent": "Mozilla/5.0" },
-  });
-  const html = await searchRes.text();
-  const $ = cheerio.load(html);
-
-  const goodsIds = [];
-  $("li[data-goods-no]").each((_, el) => {
-    goodsIds.push($(el).attr("data-goods-no"));
-  });
-
-  if (!goodsIds.length) return [];
-
-  const results = await Promise.all(goodsIds.map(parseYes24Product));
-  return results.filter(Boolean);
-}
-
-async function parseYes24Product(goodsNo) {
-  try {
-    const url = `${YES24_BASE}/Product/Goods/${goodsNo}`;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    const html = await res.text();
-    const $ = cheerio.load(html);
-
-    const title = $("h2.gd_name").text().trim();
-    if (!title) return null;
-
-    const authors = [];
-    const authorsEl = $("span.gd_auth");
-    if (authorsEl.length) {
-      const moreAuth = authorsEl.find("span.moreAuthLi");
-      (moreAuth.length ? moreAuth : authorsEl).find("a").each((_, a) => {
-        authors.push($(a).text().trim());
-      });
-    }
-
-    const publisher = $("span.gd_pub").text().trim();
-
-    let publishedDate = $("span.gd_date").text().trim();
-    const m = publishedDate.match(/(\d{4})년\s*(\d{2})월\s*(\d{2})일/);
-    if (m) publishedDate = `${m[1]}-${m[2]}-${m[3]}`;
-
-    return {
-      title,
-      authors,
-      publisher,
-      publishedDate,
-      thumbnail: `https://image.yes24.com/goods/${goodsNo}/XL`,
-      url,
-    };
-  } catch {
-    return null;
-  }
-}
 
 // ─── Notion 데이터베이스에 페이지 추가 ─────────────────────
 app.post("/api/add-to-notion", async (req, res) => {
