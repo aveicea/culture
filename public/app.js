@@ -1,5 +1,5 @@
 const searchInput = document.getElementById("searchInput");
-const searchBtn = document.getElementById("searchBtn");
+const searchHint = document.getElementById("searchHint");
 const resultsEl = document.getElementById("results");
 const toastEl = document.getElementById("toast");
 
@@ -17,12 +17,16 @@ function showToast(msg, isError = false) {
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") doSearch();
 });
-searchBtn.addEventListener("click", doSearch);
+
+searchInput.addEventListener("input", () => {
+  searchHint.textContent = searchInput.value.trim() ? "Enter" : "";
+});
 
 async function doSearch() {
   const query = searchInput.value.trim();
   if (!query) return;
 
+  searchHint.textContent = "";
   resultsEl.innerHTML = '<div class="empty-state"><span class="spinner"></span> 검색 중...</div>';
 
   try {
@@ -41,7 +45,7 @@ async function doSearch() {
 
     renderBooks(data.books);
   } catch (err) {
-    resultsEl.innerHTML = `<div class="empty-state">네트워크 오류가 발생했습니다</div>`;
+    resultsEl.innerHTML = '<div class="empty-state">네트워크 오류가 발생했습니다</div>';
   }
 }
 
@@ -53,7 +57,7 @@ function renderBooks(books) {
 
     const thumbHtml = book.thumbnail
       ? `<img class="book-thumb" src="${book.thumbnail}" alt="">`
-      : `<div class="book-thumb no-img">No Image</div>`;
+      : `<div class="book-thumb no-img">No<br>Image</div>`;
 
     const authorsStr = book.authors?.join(", ") || "저자 미상";
     const metaParts = [book.publisher, book.publishedDate].filter(Boolean).join(" · ");
@@ -65,9 +69,7 @@ function renderBooks(books) {
         <div class="book-authors">${escapeHtml(authorsStr)}</div>
         <div class="book-meta">${escapeHtml(metaParts)}</div>
       </div>
-      <div class="book-action">
-        <button class="add-btn">Notion에 추가</button>
-      </div>
+      <button class="add-btn">추가</button>
     `;
 
     const btn = card.querySelector(".add-btn");
@@ -95,20 +97,20 @@ async function addToNotion(book, card, btn) {
 
     if (!res.ok) {
       showToast(`실패: ${data.error}`, true);
-      btn.textContent = "Notion에 추가";
+      btn.textContent = "추가";
       btn.disabled = false;
       card.classList.remove("adding");
       return;
     }
 
-    btn.textContent = "추가 완료";
+    btn.textContent = "완료";
     btn.className = "add-btn done";
     card.classList.remove("adding");
     card.classList.add("added");
-    showToast(`"${book.title}" Notion에 추가 완료`);
+    showToast(`"${book.title}" 저장 완료`);
   } catch (err) {
     showToast("네트워크 오류", true);
-    btn.textContent = "Notion에 추가";
+    btn.textContent = "추가";
     btn.disabled = false;
     card.classList.remove("adding");
   }
