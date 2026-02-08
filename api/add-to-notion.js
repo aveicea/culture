@@ -1,65 +1,10 @@
-const ALADIN_TTB_KEY = process.env.ALADIN_TTB_KEY;
 const NOTION_TOKEN = process.env.NOTION_TOKEN;
 const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
 module.exports = async (req, res) => {
-  const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
-  if (req.method === "GET" && pathname === "/api/search") {
-    return handleSearch(req, res);
-  }
-
-  if (req.method === "POST" && pathname === "/api/add-to-notion") {
-    return handleAddToNotion(req, res);
-  }
-
-  res.status(404).json({ error: "Not found" });
-};
-
-// ─── 알라딘 도서 검색 ───────────────────────────────────────
-async function handleSearch(req, res) {
-  const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
-  const query = searchParams.get("query");
-  if (!query) return res.status(400).json({ error: "query 파라미터가 필요합니다" });
-
-  try {
-    const url = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx`
-      + `?ttbkey=${ALADIN_TTB_KEY}`
-      + `&Query=${encodeURIComponent(query)}`
-      + `&QueryType=Keyword`
-      + `&MaxResults=10`
-      + `&start=1`
-      + `&SearchTarget=Book`
-      + `&output=js`
-      + `&Version=20131101`
-      + `&Cover=Big`;
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    const books = (data.item || []).map((item) => ({
-      title: item.title,
-      authors: item.author
-        ? item.author.split(", ").map((a) => a.replace(/\s*\(.*?\)\s*/g, "").trim()).filter(Boolean)
-        : [],
-      publisher: item.publisher,
-      thumbnail: item.cover,
-      isbn: item.isbn13 || item.isbn,
-      publishedDate: item.pubDate,
-      url: item.link,
-    }));
-
-    res.json({ books });
-  } catch (err) {
-    console.error("알라딘 API 에러:", err);
-    res.status(500).json({ error: "도서 검색 중 오류가 발생했습니다" });
-  }
-}
-
-// ─── Notion 데이터베이스에 페이지 추가 ─────────────────────
-async function handleAddToNotion(req, res) {
   const { title, authors, thumbnail, publisher, isbn, url: bookUrl, publishedDate } = req.body;
-
   if (!title) return res.status(400).json({ error: "title은 필수입니다" });
 
   try {
@@ -169,4 +114,4 @@ async function handleAddToNotion(req, res) {
     console.error("Notion API 에러:", err);
     res.status(500).json({ error: "Notion 페이지 생성 중 오류가 발생했습니다" });
   }
-}
+};
