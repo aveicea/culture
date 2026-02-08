@@ -1,3 +1,9 @@
 {
-  "framework": null
+  "buildCommand": "true",
+  "installCommand": "npm install",
+  "functions": {
+    "api/*.js": {
+      "runtime": "@vercel/node@3"
+    }
+  }
 }
