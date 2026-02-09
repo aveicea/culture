@@ -91,15 +91,28 @@ body {
   color: #b4b0a8;
 }
 
-.search-hint {
-  font-size: 11px;
+.search-btn {
+  display: none;
+  font-size: 12px;
   color: #b4b0a8;
-  background: #eae8e4;
-  border-radius: 4px;
-  padding: 2px 6px;
-  flex-shrink: 0;
-  font-family: inherit;
+  background: transparent;
   border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 2px 4px;
+  transition: color 0.12s;
+}
+
+.search-btn.visible {
+  display: block;
+}
+
+.search-btn:hover {
+  color: #787774;
+}
+
+.search-btn:active {
+  color: #37352f;
 }
 
 /* ─── 연관검색어 ──────────────────────────── */
@@ -161,6 +174,10 @@ body {
   display: flex;
 }
 
+.tense-dropdown {
+  position: relative;
+}
+
 .tense-toggle {
   padding: 3px 10px;
   border: 1px solid #e3e2de;
@@ -176,6 +193,44 @@ body {
 .tense-toggle:hover {
   background: #555;
   border-color: #555;
+}
+
+.tense-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 3px;
+  background: #fff;
+  border: 1px solid #e3e2de;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  list-style: none;
+  z-index: 10;
+  min-width: 100%;
+  overflow: hidden;
+}
+
+.tense-menu.open {
+  display: block;
+}
+
+.tense-option {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #37352f;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.tense-option:hover {
+  background: #f0f7ff;
+}
+
+.tense-option.selected {
+  color: #2eaadc;
+  font-weight: 600;
 }
 
 .card-stars {

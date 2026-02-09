@@ -1,5 +1,5 @@
 const searchInput = document.getElementById("searchInput");
-const searchHint = document.getElementById("searchHint");
+const searchBtn = document.getElementById("searchBtn");
 const resultsEl = document.getElementById("results");
 const toastEl = document.getElementById("toast");
 const suggestionsEl = document.getElementById("suggestions");
@@ -94,6 +94,14 @@ async function fetchSuggestions(query) {
 // ─── 검색 ─────────────────────────────────────
 let searchLock = false; // Enter 후 suggest 재표시 방지
 
+searchBtn.addEventListener("click", () => {
+  searchLock = true;
+  clearTimeout(suggestTimer);
+  if (suggestAbort) suggestAbort.abort();
+  closeSuggestions();
+  doSearch();
+});
+
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     searchLock = true;
@@ -107,7 +115,7 @@ searchInput.addEventListener("keydown", (e) => {
 
 searchInput.addEventListener("input", () => {
   const q = searchInput.value.trim();
-  searchHint.textContent = q ? "Enter" : "";
+  searchBtn.classList.toggle("visible", q.length > 0);
   searchLock = false; // 다시 타이핑하면 잠금 해제
 
   clearTimeout(suggestTimer);
@@ -128,7 +136,7 @@ async function doSearch() {
   const query = searchInput.value.trim();
   if (!query) return;
 
-  searchHint.textContent = "";
+  searchBtn.classList.remove("visible");
   resultsEl.innerHTML = '<div class="empty-state"><span class="spinner"></span> 검색 중...</div>';
 
   const endpoint = {
@@ -214,7 +222,13 @@ function renderItems(items) {
     panel.className = "card-panel";
     const currentTense = lastTense || tenseOptions[0] || "";
     panel.innerHTML = `
-      ${currentTense ? `<button class="tense-toggle" data-tense="${escapeHtml(currentTense)}">${escapeHtml(currentTense)}</button>` : ""}
+      ${currentTense ? `
+      <div class="tense-dropdown">
+        <button class="tense-toggle" data-tense="${escapeHtml(currentTense)}">${escapeHtml(currentTense)} ▾</button>
+        <ul class="tense-menu">
+          ${tenseOptions.map((t) => `<li class="tense-option${t === currentTense ? ' selected' : ''}" data-tense="${escapeHtml(t)}">${escapeHtml(t)}</li>`).join("")}
+        </ul>
+      </div>` : ""}
       <div class="card-stars">
         <span class="star" data-value="1">★</span>
         <span class="star" data-value="2">★</span>
@@ -237,19 +251,30 @@ function renderItems(items) {
 
     card.appendChild(panel);
 
-    // 시제 토글 이벤트
+    // 시제 드롭다운 이벤트
+    const tenseDropdown = panel.querySelector(".tense-dropdown");
     const tenseBtn = panel.querySelector(".tense-toggle");
-    if (tenseBtn) {
+    const tenseMenu = panel.querySelector(".tense-menu");
+    if (tenseBtn && tenseMenu) {
       tenseBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const cur = tenseBtn.dataset.tense;
-        const idx = tenseOptions.indexOf(cur);
-        const next = tenseOptions[(idx + 1) % tenseOptions.length];
-        tenseBtn.dataset.tense = next;
-        tenseBtn.textContent = next;
-        lastTense = next;
-        localStorage.setItem("lastTense", next);
+        tenseMenu.classList.toggle("open");
       });
+      tenseMenu.querySelectorAll(".tense-option").forEach((opt) => {
+        opt.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const val = opt.dataset.tense;
+          tenseBtn.dataset.tense = val;
+          tenseBtn.textContent = val + " ▾";
+          tenseMenu.querySelectorAll(".tense-option").forEach((o) => o.classList.remove("selected"));
+          opt.classList.add("selected");
+          tenseMenu.classList.remove("open");
+          lastTense = val;
+          localStorage.setItem("lastTense", val);
+        });
+      });
+      // 바깥 클릭 시 닫기
+      document.addEventListener("click", () => tenseMenu.classList.remove("open"));
     }
 
     // 별점 이벤트
