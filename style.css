@@ -242,6 +242,47 @@ body {
   background: #e03e3e;
 }
 
+/* ─── 중복 확인 ────────────────────────────── */
+.dup-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.dup-msg {
+  font-size: 11px;
+  color: #e8930c;
+  font-weight: 500;
+}
+
+.dup-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.dup-btn {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  border: 1px solid #e3e2de;
+  background: transparent;
+  color: #37352f;
+  transition: all 0.12s;
+}
+
+.dup-btn.dup-yes:hover {
+  background: #2eaadc;
+  color: #fff;
+  border-color: #2eaadc;
+}
+
+.dup-btn.dup-no:hover {
+  background: #f0efeb;
+}
+
 /* ─── 반응형 ───────────────────────────────── */
 @media (max-width: 480px) {
   .widget { padding: 12px; }

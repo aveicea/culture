@@ -238,6 +238,48 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
+// ─── Notion 중복 체크 ────────────────────────────────────
+app.post("/api/check-duplicate", async (req, res) => {
+  const { title, publishedDate } = req.body;
+  if (!title) return res.status(400).json({ error: "title은 필수입니다" });
+
+  try {
+    const year = publishedDate ? publishedDate.slice(0, 4) : "";
+    const displayTitle = year ? `${title} (${year})` : title;
+
+    const searchRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}/query`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${NOTION_TOKEN}`,
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        filter: {
+          property: "이름",
+          title: { equals: displayTitle },
+        },
+      }),
+    });
+
+    if (!searchRes.ok) {
+      return res.json({ exists: false });
+    }
+
+    const data = await searchRes.json();
+    if (data.results?.length > 0) {
+      const existing = data.results[0];
+      const date = existing.properties["날짜"]?.date?.start || null;
+      return res.json({ exists: true, date, pageUrl: existing.url });
+    }
+
+    res.json({ exists: false });
+  } catch (err) {
+    console.error("중복 체크 에러:", err);
+    res.json({ exists: false });
+  }
+});
+
 // ─── Notion 데이터베이스에 페이지 추가 ─────────────────────
 app.post("/api/add-to-notion", async (req, res) => {
   const { title, authors, thumbnail, publisher, isbn, url: bookUrl, genres, country, itemPage, publishedDate } = req.body;
