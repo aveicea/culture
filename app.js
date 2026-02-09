@@ -106,7 +106,8 @@ async function addToNotion(book, card, btn) {
       const confirmMsg = `이미 ${dateStr}에 추가된 책입니다.\n다시 추가할까요?`;
 
       // 카드에 중복 알림 표시
-      showDuplicateConfirm(card, btn, book, dateStr);
+      const existingTitle = checkData.existingTitle || book.title;
+      showDuplicateConfirm(card, btn, book, dateStr, existingTitle);
       return;
     }
 
@@ -120,7 +121,7 @@ async function addToNotion(book, card, btn) {
   }
 }
 
-function showDuplicateConfirm(card, btn, book, dateStr) {
+function showDuplicateConfirm(card, btn, book, dateStr, existingTitle) {
   // 기존 버튼 숨기기
   btn.style.display = "none";
 
@@ -128,7 +129,7 @@ function showDuplicateConfirm(card, btn, book, dateStr) {
   const confirmEl = document.createElement("div");
   confirmEl.className = "dup-confirm";
   confirmEl.innerHTML = `
-    <div class="dup-msg">${dateStr} 기록 있음</div>
+    <div class="dup-msg">"${escapeHtml(existingTitle)}" ${dateStr} 기록 있음</div>
     <div class="dup-buttons">
       <button class="dup-btn dup-yes">다시 추가</button>
       <button class="dup-btn dup-no">취소</button>
