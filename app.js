@@ -9,11 +9,18 @@ let currentType = "book"; // book | movie | drama
 let suggestTimer = null;
 let suggestAbort = null;
 let tenseOptions = []; // 노션에서 가져온 시제 옵션
+let lastTense = localStorage.getItem("lastTense") || ""; // 마지막 선택 기억
 
 // 시제 옵션을 노션 DB에서 가져오기
 fetch("/api/tense-options")
   .then((r) => r.json())
-  .then((data) => { tenseOptions = data.options || []; })
+  .then((data) => {
+    tenseOptions = data.options || [];
+    // 저장된 값이 옵션에 없으면 첫 번째로
+    if (tenseOptions.length && !tenseOptions.includes(lastTense)) {
+      lastTense = tenseOptions[0];
+    }
+  })
   .catch(() => {});
 
 const placeholders = {
@@ -205,11 +212,9 @@ function renderItems(items) {
     // 펼침 패널 (클릭 시 표시)
     const panel = document.createElement("div");
     panel.className = "card-panel";
-    const tenseBtnsHtml = tenseOptions.map((t, i) =>
-      `<button class="tense-btn${i === tenseOptions.length - 1 ? ' active' : ''}" data-tense="${escapeHtml(t)}">${escapeHtml(t)}</button>`
-    ).join("");
+    const currentTense = lastTense || tenseOptions[0] || "";
     panel.innerHTML = `
-      <div class="card-tense">${tenseBtnsHtml}</div>
+      ${currentTense ? `<button class="tense-toggle" data-tense="${escapeHtml(currentTense)}">${escapeHtml(currentTense)}</button>` : ""}
       <div class="card-stars">
         <span class="star" data-value="1">★</span>
         <span class="star" data-value="2">★</span>
@@ -232,14 +237,20 @@ function renderItems(items) {
 
     card.appendChild(panel);
 
-    // 시제 버튼 이벤트
-    panel.querySelectorAll(".tense-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
+    // 시제 토글 이벤트
+    const tenseBtn = panel.querySelector(".tense-toggle");
+    if (tenseBtn) {
+      tenseBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        panel.querySelector(".tense-btn.active")?.classList.remove("active");
-        btn.classList.add("active");
+        const cur = tenseBtn.dataset.tense;
+        const idx = tenseOptions.indexOf(cur);
+        const next = tenseOptions[(idx + 1) % tenseOptions.length];
+        tenseBtn.dataset.tense = next;
+        tenseBtn.textContent = next;
+        lastTense = next;
+        localStorage.setItem("lastTense", next);
       });
-    });
+    }
 
     // 별점 이벤트
     let cardRating = 0;
@@ -271,8 +282,8 @@ function renderItems(items) {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       if (!item.type) item.type = currentType;
-      const activeTense = panel.querySelector(".tense-btn.active");
-      if (activeTense) item.tense = activeTense.dataset.tense;
+      const tenseEl = panel.querySelector(".tense-toggle");
+      if (tenseEl) item.tense = tenseEl.dataset.tense;
       if (cardRating > 0) item.rating = `${cardRating}`;
       addToNotion(item, card, btn);
     });

@@ -160,31 +160,21 @@ body {
   display: flex;
 }
 
-.card-tense {
-  display: flex;
-  gap: 2px;
-}
-
-.tense-btn {
-  padding: 3px 8px;
+.tense-toggle {
+  padding: 3px 10px;
   border: 1px solid #e3e2de;
   border-radius: 4px;
-  background: transparent;
+  background: #37352f;
   font-size: 10px;
-  color: #a5a29a;
+  color: #fff;
   cursor: pointer;
   transition: all 0.12s;
+  white-space: nowrap;
 }
 
-.tense-btn:hover {
-  color: #37352f;
-  border-color: #ccc;
-}
-
-.tense-btn.active {
-  background: #37352f;
-  color: #fff;
-  border-color: #37352f;
+.tense-toggle:hover {
+  background: #555;
+  border-color: #555;
 }
 
 .card-stars {
