@@ -515,9 +515,9 @@ app.post("/api/add-to-notion", async (req, res) => {
       properties["평점"] = { select: { name: rating } };
     }
 
-    // 시제 (select)
+    // 시제 (status)
     if (tense) {
-      properties["시제"] = { select: { name: tense } };
+      properties["시제"] = { status: { name: tense } };
     }
 
     // Files & media → 포스터/표지 이미지 (files)

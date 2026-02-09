@@ -78,8 +78,13 @@ async function fetchSuggestions(query) {
 }
 
 // ─── 검색 ─────────────────────────────────────
+let searchLock = false; // Enter 후 suggest 재표시 방지
+
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
+    searchLock = true;
+    clearTimeout(suggestTimer);
+    if (suggestAbort) suggestAbort.abort();
     closeSuggestions();
     doSearch();
   }
@@ -89,10 +94,13 @@ searchInput.addEventListener("keydown", (e) => {
 searchInput.addEventListener("input", () => {
   const q = searchInput.value.trim();
   searchHint.textContent = q ? "Enter" : "";
+  searchLock = false; // 다시 타이핑하면 잠금 해제
 
   clearTimeout(suggestTimer);
   if (q.length >= 1) {
-    suggestTimer = setTimeout(() => fetchSuggestions(q), 150);
+    suggestTimer = setTimeout(() => {
+      if (!searchLock) fetchSuggestions(q);
+    }, 150);
   } else {
     closeSuggestions();
   }
