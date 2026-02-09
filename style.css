@@ -143,20 +143,21 @@ body {
   margin-left: 4px;
 }
 
-/* ─── 카드 내 액션 영역 (시제+별점+추가) ──── */
-.card-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  flex-shrink: 0;
+/* ─── 카드 펼침 패널 ──────────────────────── */
+.book-card {
+  flex-wrap: wrap;
 }
 
-.card-options {
+.card-panel {
+  display: none;
+  width: 100%;
+  padding: 8px 0 2px;
+  align-items: center;
+  gap: 10px;
+}
+
+.book-card.open .card-panel {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
 }
 
 .card-tense {
@@ -165,7 +166,7 @@ body {
 }
 
 .tense-btn {
-  padding: 3px 7px;
+  padding: 3px 8px;
   border: 1px solid #e3e2de;
   border-radius: 4px;
   background: transparent;
@@ -192,7 +193,7 @@ body {
 }
 
 .star {
-  font-size: 14px;
+  font-size: 15px;
   color: #ddd;
   cursor: pointer;
   transition: color 0.1s, transform 0.1s;
@@ -207,6 +208,10 @@ body {
 
 .star.active {
   color: #f59e0b;
+}
+
+.card-panel .add-btn {
+  margin-left: auto;
 }
 
 /* ─── 결과 리스트 ──────────────────────────── */

@@ -182,38 +182,51 @@ function renderItems(items) {
         ${authorLabel ? `<div class="book-authors">${escapeHtml(authorLabel)}</div>` : ""}
         <div class="book-meta">${escapeHtml(metaParts.join(" · "))}</div>
       </div>
-      <div class="card-actions">
-        <div class="card-options">
-          <div class="card-tense">
-            <button class="tense-btn" data-tense="미래형">미래형</button>
-            <button class="tense-btn" data-tense="진행형">진행형</button>
-            <button class="tense-btn active" data-tense="과거완료형">과거완료형</button>
-          </div>
-          <div class="card-stars">
-            <span class="star" data-value="1">★</span>
-            <span class="star" data-value="2">★</span>
-            <span class="star" data-value="3">★</span>
-            <span class="star" data-value="4">★</span>
-            <span class="star" data-value="5">★</span>
-          </div>
-        </div>
-        <button class="add-btn">추가</button>
-      </div>
     `;
 
+    // 펼침 패널 (클릭 시 표시)
+    const panel = document.createElement("div");
+    panel.className = "card-panel";
+    panel.innerHTML = `
+      <div class="card-tense">
+        <button class="tense-btn" data-tense="미래형">미래형</button>
+        <button class="tense-btn" data-tense="진행형">진행형</button>
+        <button class="tense-btn active" data-tense="과거완료형">과거완료형</button>
+      </div>
+      <div class="card-stars">
+        <span class="star" data-value="1">★</span>
+        <span class="star" data-value="2">★</span>
+        <span class="star" data-value="3">★</span>
+        <span class="star" data-value="4">★</span>
+        <span class="star" data-value="5">★</span>
+      </div>
+      <button class="add-btn">추가</button>
+    `;
+
+    // 카드 클릭 → 패널 토글
+    card.addEventListener("click", () => {
+      const wasOpen = card.classList.contains("open");
+      // 다른 열린 카드 닫기
+      document.querySelectorAll(".book-card.open").forEach((c) => {
+        c.classList.remove("open");
+      });
+      if (!wasOpen) card.classList.add("open");
+    });
+
+    card.appendChild(panel);
+
     // 시제 버튼 이벤트
-    const tenseBtns = card.querySelectorAll(".tense-btn");
-    tenseBtns.forEach((btn) => {
+    panel.querySelectorAll(".tense-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        card.querySelector(".tense-btn.active")?.classList.remove("active");
+        panel.querySelector(".tense-btn.active")?.classList.remove("active");
         btn.classList.add("active");
       });
     });
 
     // 별점 이벤트
     let cardRating = 0;
-    const stars = card.querySelectorAll(".star");
+    const stars = panel.querySelectorAll(".star");
     stars.forEach((star) => {
       star.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -226,9 +239,7 @@ function renderItems(items) {
       });
       star.addEventListener("mouseenter", () => {
         const val = parseInt(star.dataset.value);
-        stars.forEach((s) => {
-          s.classList.toggle("hovered", parseInt(s.dataset.value) <= val);
-        });
+        stars.forEach((s) => s.classList.toggle("hovered", parseInt(s.dataset.value) <= val));
       });
       star.addEventListener("mouseleave", () => {
         stars.forEach((s) => {
@@ -239,12 +250,11 @@ function renderItems(items) {
     });
 
     // 추가 버튼
-    const btn = card.querySelector(".add-btn");
+    const btn = panel.querySelector(".add-btn");
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       if (!item.type) item.type = currentType;
-      // 해당 카드에서 시제/별점 읽기
-      const activeTense = card.querySelector(".tense-btn.active");
+      const activeTense = panel.querySelector(".tense-btn.active");
       if (activeTense) item.tense = activeTense.dataset.tense;
       if (cardRating > 0) item.rating = `${cardRating}`;
       addToNotion(item, card, btn);
