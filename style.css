@@ -161,6 +161,10 @@ body {
   display: flex;
 }
 
+.tense-dropdown {
+  position: relative;
+}
+
 .tense-toggle {
   padding: 3px 10px;
   border: 1px solid #e3e2de;
@@ -176,6 +180,44 @@ body {
 .tense-toggle:hover {
   background: #555;
   border-color: #555;
+}
+
+.tense-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 3px;
+  background: #fff;
+  border: 1px solid #e3e2de;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  list-style: none;
+  z-index: 10;
+  min-width: 100%;
+  overflow: hidden;
+}
+
+.tense-menu.open {
+  display: block;
+}
+
+.tense-option {
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #37352f;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.tense-option:hover {
+  background: #f0f7ff;
+}
+
+.tense-option.selected {
+  color: #2eaadc;
+  font-weight: 600;
 }
 
 .card-stars {
