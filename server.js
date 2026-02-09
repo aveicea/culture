@@ -53,7 +53,7 @@ app.get("/api/search", async (req, res) => {
           const lookupData = await lookupRes.json();
           const detail = lookupData.item?.[0];
           if (detail) {
-            itemPage = detail.subInfo?.packing?.sizeDepth || detail.subInfo?.itemPage || 0;
+            itemPage = detail.subInfo?.itemPage || 0;
             categoryName = detail.categoryName || item.categoryName || "";
           }
         } catch {
@@ -100,15 +100,18 @@ app.get("/api/search", async (req, res) => {
             "시": "시", "시집": "시", "에세이": "에세이", "산문": "에세이",
             "희곡": "드라마", "수필": "에세이",
             // 장르 소설
+            "장르소설": null, // 하위 카테고리에서 구체적 장르 잡힘
             "추리": "미스터리", "미스터리": "미스터리", "추리소설": "미스터리",
             "스릴러": "스릴러", "공포": "스릴러", "호러": "스릴러",
-            "SF": "SF", "과학소설": "SF",
-            "판타지": "판타지", "로맨스": "로맨스",
+            "SF": "SF", "SF소설": "SF", "과학소설": "SF",
+            "판타지": "판타지", "판타지소설": "판타지",
+            "로맨스": "로맨스", "로맨스소설": "로맨스",
             "역사소설": "역사", "대체역사소설": "역사",
             "모험소설": "모험", "모험": "모험",
-            "무협": "액션", "액션": "액션",
+            "무협": "액션", "무협소설": "액션", "액션": "액션",
             "코미디": "코미디", "유머": "코미디",
             "가족": "가족", "범죄": "범죄", "전쟁": "전쟁",
+            "BL": "로맨스", "BL소설": "로맨스",
             // 비문학
             "경제경영": "경제/경영", "경제": "경제/경영", "경영": "경제/경영",
             "재테크": "경제/경영", "투자": "경제/경영", "마케팅": "경제/경영",
@@ -127,24 +130,35 @@ app.get("/api/search", async (req, res) => {
             "과학": "과학", "수학": "과학", "물리학": "과학",
             "생물학": "과학", "천문학": "과학", "공학": "과학",
             "기술공학": "과학", "자연": "과학", "환경": "과학",
-            "IT": "과학", "컴퓨터": "과학", "모바일": "과학", "프로그래밍": "과학",
-            // 기타 → 가까운 기존 장르로
+            "IT": "IT", "컴퓨터": "IT", "모바일": "IT", "프로그래밍": "IT",
+            // 기타
             "만화": "애니메이션", "코믹스": "애니메이션", "그래픽노블": "애니메이션",
             "라이트노벨": "소설", "웹소설": "소설",
-            "예술": "인문학", "대중문화": "인문학",
-            "종교": "인문학", "문화": "인문학", "신화": "인문학",
-            "음악": "인문학", "영화": "인문학", "사진": "인문학",
-            "건축": "인문학", "디자인": "인문학", "미술": "인문학",
-            "여행": "에세이", "여행에세이": "에세이",
+            "예술": "예술", "대중문화": "예술",
+            "음악": "예술", "영화": "예술", "사진": "예술",
+            "건축": "예술", "디자인": "예술", "미술": "예술",
+            "종교": "종교", "역학": "종교", "신화": "종교",
+            "명상": "종교", "점술": "종교",
+            "여행": "여행", "여행에세이": "여행",
+            "건강": "건강", "스포츠": "건강", "취미": "건강",
+            "레저": "건강", "원예": "건강",
+            "요리": "요리", "살림": "요리",
+            "문화": "인문학", "문학": "소설",
             // 무시할 카테고리 (장르로 안 넣음)
-            "건강": null, "취미": null, "레저": null, "스포츠": null,
-            "요리": null, "살림": null, "뷰티": null, "가정": null,
+            "뷰티": null, "가정": null, "인테리어": null,
             "육아": null, "어린이": null, "유아": null, "청소년": null,
             "수험서": null, "자격증": null, "외국어": null, "국어": null,
             "사전": null, "대학교재": null, "잡지": null, "교육": null,
+            "좋은부모": null, "공무원": null, "기타": null,
+            "달력": null, "전집": null, "중고전집": null,
+            "초등학교참고서": null, "중학교참고서": null, "고등학교참고서": null,
+            "ELT": null, "어학": null, "영어학습": null,
+            "동화책": null, "그림책": null, "챕터북": null, "코스북": null, "리더스": null,
+            "공예": null, "수집": null, "해외잡지": null,
           };
           const countryPrefixes = [...countryMap.flatMap(([, kws]) => kws), "영미", "세계의"];
-          for (let i = 1; i < parts.length; i++) {
+          // 하위(구체적) 카테고리를 우선하기 위해 뒤에서부터 처리
+          for (let i = parts.length - 1; i >= 1; i--) {
             const segment = parts[i].trim();
             if (!segment) continue;
             const subGenres = segment.includes("/") ? segment.split("/") : [segment];
@@ -163,14 +177,28 @@ app.get("/api/search", async (req, res) => {
               if (mapped && !genres.includes(mapped)) genres.push(mapped);
             }
           }
+          // 구체적 장르가 잡혔으면 상위 포괄 장르(소설 등) 중복 제거
+          if (genres.length > 1) {
+            const specific = ["미스터리", "스릴러", "SF", "판타지", "로맨스", "액션", "모험", "범죄", "전쟁"];
+            if (genres.some((g) => specific.includes(g))) {
+              const toRemove = ["소설", "드라마"];
+              for (const r of toRemove) {
+                const idx = genres.indexOf(r);
+                if (idx > -1) genres.splice(idx, 1);
+              }
+            }
+          }
         }
 
-        // 저자 파싱: "저자명 (지은이), 역자명 (옮긴이)" → 지은이만
+        // 저자 파싱: "저자명 (지은이), 역자명 (옮긴이)" → 지은이만 (옮긴이, 그림 등 제외)
         const authors = [];
         if (item.author) {
           const parts = item.author.split(",");
           for (const part of parts) {
-            const name = part.replace(/\s*\(.*?\)\s*/g, "").trim();
+            const trimmed = part.trim();
+            // (옮긴이), (역자), (그림), (편집), (감수) 등은 제외 — (지은이)와 역할 표기 없는 것만 포함
+            if (/\((옮긴이|역자|번역|그림|일러스트|편집|감수|엮은이|사진)\)/.test(trimmed)) continue;
+            const name = trimmed.replace(/\s*\(.*?\)\s*/g, "").trim();
             if (name) authors.push(name);
           }
         }
