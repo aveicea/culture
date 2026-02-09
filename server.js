@@ -172,6 +172,11 @@ app.post("/api/add-to-notion", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`서버 실행 중: http://localhost:${PORT}`);
-});
+// 로컬 실행용
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`서버 실행 중: http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
