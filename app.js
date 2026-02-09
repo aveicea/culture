@@ -152,9 +152,12 @@ function renderItems(items) {
     const card = document.createElement("div");
     card.className = "book-card";
 
-    const thumbHtml = item.thumbnail
+    const thumbImg = item.thumbnail
       ? `<img class="book-thumb" src="${item.thumbnail}" alt="">`
       : `<div class="book-thumb no-img">No<br>Image</div>`;
+    const thumbHtml = item.url
+      ? `<a href="${item.url}" target="_blank" rel="noopener" class="thumb-link" onclick="event.stopPropagation()">${thumbImg}</a>`
+      : thumbImg;
 
     const authorsStr = item.authors?.join(", ") || (currentType === "book" ? "저자 미상" : "");
     const year = item.publishedDate ? item.publishedDate.slice(0, 4) : "";

@@ -219,7 +219,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 480px;
+  max-height: 320px;
   overflow-y: auto;
 }
 
@@ -256,9 +256,13 @@ body {
   background: #f0fdf4;
 }
 
+.thumb-link {
+  flex-shrink: 0;
+}
+
 .book-thumb {
-  width: 44px;
-  height: 62px;
+  width: 40px;
+  height: 56px;
   border-radius: 4px;
   object-fit: cover;
   background: #f0efeb;

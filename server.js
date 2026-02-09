@@ -358,6 +358,7 @@ app.get("/api/search-movie", async (req, res) => {
           country: countries[0] || "",
           runtime,
           overview: item.overview,
+          url: `https://www.themoviedb.org/movie/${item.id}`,
         };
       })
     );
@@ -410,6 +411,7 @@ app.get("/api/search-drama", async (req, res) => {
           runtime: episodeRuntime,
           totalEpisodes,
           overview: item.overview,
+          url: `https://www.themoviedb.org/tv/${item.id}`,
         };
       })
     );
