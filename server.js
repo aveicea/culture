@@ -60,11 +60,30 @@ app.get("/api/search", async (req, res) => {
           categoryName = item.categoryName || "";
         }
 
-        // 장르 추출: "국내도서>소설/시/희곡>한국소설" → ["소설/시/희곡", "한국소설"]
+        // 카테고리에서 국가 + 장르 추출
+        // 예: "국내도서>소설/시/희곡>한국소설" → 국가: 한국, 장르: ["소설/시/희곡", "한국소설"]
+        // 예: "외국도서>영미소설>영국소설" → 국가: 영국/미국, 장르: ["영미소설", "영국소설"]
         const genres = [];
+        let country = "";
         if (categoryName) {
           const parts = categoryName.split(">");
-          // 첫 번째는 "국내도서" 같은 큰 분류이므로 건너뜀
+          const top = parts[0]?.trim() || "";
+          if (top === "국내도서") {
+            country = "한국";
+          } else if (top.includes("일본")) {
+            country = "일본";
+          } else if (top.includes("영미") || top.includes("외국도서")) {
+            // 하위 카테고리에서 국가 힌트 찾기
+            const sub = parts.slice(1).join(" ").toLowerCase();
+            if (sub.includes("영국")) country = "영국";
+            else if (sub.includes("미국")) country = "미국";
+            else if (sub.includes("프랑스") || sub.includes("불문")) country = "프랑스";
+            else if (sub.includes("독일") || sub.includes("독문")) country = "독일";
+            else if (sub.includes("일본") || sub.includes("일문")) country = "일본";
+            else if (sub.includes("중국") || sub.includes("중문")) country = "중국";
+            else if (sub.includes("스페인")) country = "스페인";
+            else if (sub.includes("러시아")) country = "러시아";
+          }
           for (let i = 1; i < parts.length; i++) {
             const g = parts[i].trim();
             if (g) genres.push(g);
@@ -90,6 +109,7 @@ app.get("/api/search", async (req, res) => {
           publishedDate: item.pubDate,
           url: item.link,
           genres,
+          country,
           itemPage: itemPage || 0,
         };
       })
@@ -104,7 +124,7 @@ app.get("/api/search", async (req, res) => {
 
 // ─── Notion 데이터베이스에 페이지 추가 ─────────────────────
 app.post("/api/add-to-notion", async (req, res) => {
-  const { title, authors, thumbnail, publisher, isbn, url: bookUrl, genres, itemPage } = req.body;
+  const { title, authors, thumbnail, publisher, isbn, url: bookUrl, genres, country, itemPage } = req.body;
 
   if (!title) return res.status(400).json({ error: "title은 필수입니다" });
 
@@ -126,8 +146,10 @@ app.post("/api/add-to-notion", async (req, res) => {
       properties["작가/감독"] = { multi_select: authors.map((a) => ({ name: a })) };
     }
 
-    // 국가 → "한국" (multi_select) — 국내도서 기준
-    properties["국가"] = { multi_select: [{ name: "한국" }] };
+    // 국가 (multi_select) — 알라딘 카테고리 기반
+    if (country) {
+      properties["국가"] = { multi_select: [{ name: country }] };
+    }
 
     // 장르 (multi_select)
     if (genres?.length) {
@@ -146,15 +168,21 @@ app.post("/api/add-to-notion", async (req, res) => {
       };
     }
 
+    // 페이지 본문에 표지 이미지 삽입
+    const children = [];
+    if (thumbnail) {
+      children.push({
+        object: "block",
+        type: "image",
+        image: { type: "external", external: { url: thumbnail } },
+      });
+    }
+
     const body = {
       parent: { database_id: NOTION_DATABASE_ID },
       properties,
+      children,
     };
-
-    // 커버 이미지
-    if (thumbnail) {
-      body.cover = { type: "external", external: { url: thumbnail } };
-    }
 
     const createRes = await fetch("https://api.notion.com/v1/pages", {
       method: "POST",
