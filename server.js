@@ -196,6 +196,11 @@ app.get("/api/search", async (req, res) => {
               if (mapped && !genres.includes(mapped)) genres.push(mapped);
             }
           }
+          // 장르소설(SF, 미스터리 등)이면 "소설"도 함께 추가
+          const genreNovel = ["미스터리", "스릴러", "SF", "판타지", "로맨스", "액션", "모험", "범죄"];
+          if (genres.some((g) => genreNovel.includes(g)) && !genres.includes("소설")) {
+            genres.push("소설");
+          }
         }
 
         // 저자 파싱: "저자명 (지은이), 역자명 (옮긴이)" → 지은이만 (옮긴이, 그림 등 제외)
