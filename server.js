@@ -92,21 +92,24 @@ app.get("/api/search", async (req, res) => {
           // 외국 국가를 못 찾았으면 국내도서일 때만 한국
           if (!country && top === "국내도서") country = "한국";
 
-          // 장르 추출: 복합 카테고리 정리 + 국가명 접두사 제거
-          const countryPrefixes = countryMap.flatMap(([, kws]) => kws);
+          // 장르 추출: "소설/시/희곡" → ["소설", "시", "희곡"] + 국가명 접두사 제거
+          const countryPrefixes = [...countryMap.flatMap(([, kws]) => kws), "영미"];
           for (let i = 1; i < parts.length; i++) {
-            let g = parts[i].trim();
-            if (!g) continue;
-            // "소설/시/희곡" → "소설"
-            if (g.includes("/")) g = g.split("/")[0].trim();
-            // "독일소설" → "소설", "영미소설" → "소설", "한국소설" → "소설"
-            for (const prefix of [...countryPrefixes, "영미"]) {
-              if (g.startsWith(prefix)) {
-                g = g.slice(prefix.length).trim();
-                break;
+            const segment = parts[i].trim();
+            if (!segment) continue;
+            // "소설/시/희곡" → ["소설", "시", "희곡"] 각각 분리
+            const subGenres = segment.includes("/") ? segment.split("/") : [segment];
+            for (let sg of subGenres) {
+              sg = sg.trim();
+              // "독일소설" → "소설", "영미소설" → "소설"
+              for (const prefix of countryPrefixes) {
+                if (sg.startsWith(prefix)) {
+                  sg = sg.slice(prefix.length).trim();
+                  break;
+                }
               }
+              if (sg && !genres.includes(sg)) genres.push(sg);
             }
-            if (g && !genres.includes(g)) genres.push(g);
           }
         }
 
