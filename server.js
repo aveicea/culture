@@ -1,6 +1,5 @@
 require("dotenv").config();
 const express = require("express");
-const path = require("path");
 
 const app = express();
 app.use(express.json());
@@ -19,7 +18,8 @@ app.get("/api/search", async (req, res) => {
   if (!query) return res.status(400).json({ error: "query 파라미터가 필요합니다" });
 
   try {
-    const url = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx`
+    // 검색 API
+    const searchUrl = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx`
       + `?ttbkey=${ALADIN_TTB_KEY}`
       + `&Query=${encodeURIComponent(query)}`
       + `&QueryType=Keyword`
@@ -30,18 +30,70 @@ app.get("/api/search", async (req, res) => {
       + `&Version=20131101`
       + `&Cover=Big`;
 
-    const response = await fetch(url);
-    const data = await response.json();
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
 
-    const books = (data.item || []).map((item) => ({
-      title: item.title,
-      authors: item.author ? item.author.split(", ").map((a) => a.replace(/\s*\(.*?\)\s*/g, "").trim()).filter(Boolean) : [],
-      publisher: item.publisher,
-      thumbnail: item.cover,
-      isbn: item.isbn13 || item.isbn,
-      publishedDate: item.pubDate,
-      url: item.link,
-    }));
+    // 각 도서의 상세 정보를 병렬로 가져오기 (장르, 페이지수 등)
+    const books = await Promise.all(
+      (searchData.item || []).map(async (item) => {
+        let itemPage = 0;
+        let categoryName = "";
+
+        // 상세 조회 API (ItemLookUp)
+        try {
+          const lookupUrl = `http://www.aladin.co.kr/ttb/api/ItemLookUp.aspx`
+            + `?ttbkey=${ALADIN_TTB_KEY}`
+            + `&itemIdType=ISBN13`
+            + `&ItemId=${item.isbn13 || item.isbn}`
+            + `&output=js`
+            + `&Version=20131101`
+            + `&OptResult=packing`;
+
+          const lookupRes = await fetch(lookupUrl);
+          const lookupData = await lookupRes.json();
+          const detail = lookupData.item?.[0];
+          if (detail) {
+            itemPage = detail.subInfo?.packing?.sizeDepth || detail.subInfo?.itemPage || 0;
+            categoryName = detail.categoryName || item.categoryName || "";
+          }
+        } catch {
+          categoryName = item.categoryName || "";
+        }
+
+        // 장르 추출: "국내도서>소설/시/희곡>한국소설" → ["소설/시/희곡", "한국소설"]
+        const genres = [];
+        if (categoryName) {
+          const parts = categoryName.split(">");
+          // 첫 번째는 "국내도서" 같은 큰 분류이므로 건너뜀
+          for (let i = 1; i < parts.length; i++) {
+            const g = parts[i].trim();
+            if (g) genres.push(g);
+          }
+        }
+
+        // 저자 파싱: "저자명 (지은이), 역자명 (옮긴이)" → 지은이만
+        const authors = [];
+        if (item.author) {
+          const parts = item.author.split(",");
+          for (const part of parts) {
+            const name = part.replace(/\s*\(.*?\)\s*/g, "").trim();
+            if (name) authors.push(name);
+          }
+        }
+
+        return {
+          title: item.title,
+          authors,
+          publisher: item.publisher,
+          thumbnail: item.cover,
+          isbn: item.isbn13 || item.isbn,
+          publishedDate: item.pubDate,
+          url: item.link,
+          genres,
+          itemPage: itemPage || 0,
+        };
+      })
+    );
 
     res.json({ books });
   } catch (err) {
@@ -52,101 +104,56 @@ app.get("/api/search", async (req, res) => {
 
 // ─── Notion 데이터베이스에 페이지 추가 ─────────────────────
 app.post("/api/add-to-notion", async (req, res) => {
-  const { title, authors, thumbnail, publisher, isbn, url: bookUrl, publishedDate } = req.body;
+  const { title, authors, thumbnail, publisher, isbn, url: bookUrl, genres, itemPage } = req.body;
 
   if (!title) return res.status(400).json({ error: "title은 필수입니다" });
 
   try {
-    const dbRes = await fetch(
-      `https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}`,
-      {
-        headers: {
-          Authorization: `Bearer ${NOTION_TOKEN}`,
-          "Notion-Version": "2022-06-28",
-        },
-      }
-    );
-
-    if (!dbRes.ok) {
-      const text = await dbRes.text();
-      return res.status(dbRes.status).json({ error: `Notion DB 조회 실패: ${text}` });
-    }
-
-    const schema = (await dbRes.json()).properties;
     const properties = {};
+    const today = new Date().toISOString().split("T")[0];
 
-    // 제목 (title 타입 자동 감지)
-    const titleProp = Object.entries(schema).find(([, v]) => v.type === "title");
-    if (titleProp) {
-      properties[titleProp[0]] = { title: [{ text: { content: title } }] };
+    // 이름 (title)
+    properties["이름"] = { title: [{ text: { content: title } }] };
+
+    // 분류 → "책" (select)
+    properties["분류"] = { select: { name: "책" } };
+
+    // 날짜 → 오늘 날짜 (date)
+    properties["날짜"] = { date: { start: today } };
+
+    // 작가/감독 (multi_select) — 기존에 있으면 그걸 사용, 없으면 새로 생성됨
+    if (authors?.length) {
+      properties["작가/감독"] = { multi_select: authors.map((a) => ({ name: a })) };
     }
 
-    // 저자
-    const authorProp = Object.entries(schema).find(
-      ([k]) => ["저자", "작가", "Author", "author"].includes(k)
-    );
-    if (authorProp && authors?.length) {
-      const str = authors.join(", ");
-      if (authorProp[1].type === "rich_text") {
-        properties[authorProp[0]] = { rich_text: [{ text: { content: str } }] };
-      } else if (authorProp[1].type === "multi_select") {
-        properties[authorProp[0]] = { multi_select: authors.map((a) => ({ name: a })) };
-      }
+    // 국가 → "한국" (multi_select) — 국내도서 기준
+    properties["국가"] = { multi_select: [{ name: "한국" }] };
+
+    // 장르 (multi_select)
+    if (genres?.length) {
+      properties["장르"] = { multi_select: genres.slice(0, 3).map((g) => ({ name: g })) };
     }
 
-    // 출판사
-    const pubProp = Object.entries(schema).find(
-      ([k]) => ["출판사", "Publisher", "publisher"].includes(k)
-    );
-    if (pubProp && publisher) {
-      if (pubProp[1].type === "rich_text") {
-        properties[pubProp[0]] = { rich_text: [{ text: { content: publisher } }] };
-      } else if (pubProp[1].type === "select") {
-        properties[pubProp[0]] = { select: { name: publisher } };
-      }
+    // 러닝타임 → 총 페이지 수 (number)
+    if (itemPage > 0) {
+      properties["러닝타임"] = { number: itemPage };
     }
 
-    // ISBN
-    const isbnProp = Object.entries(schema).find(([k]) => ["ISBN", "isbn"].includes(k));
-    if (isbnProp && isbn) {
-      if (isbnProp[1].type === "rich_text") {
-        properties[isbnProp[0]] = { rich_text: [{ text: { content: isbn } }] };
-      }
+    // Files & media → 표지 이미지 (files)
+    if (thumbnail) {
+      properties["Files & media"] = {
+        files: [{ type: "external", name: "표지", external: { url: thumbnail } }],
+      };
     }
 
-    // URL
-    const urlProp = Object.entries(schema).find(
-      ([k]) => ["URL", "url", "링크", "Link"].includes(k)
-    );
-    if (urlProp && bookUrl) {
-      properties[urlProp[0]] = { url: bookUrl };
-    }
+    const body = {
+      parent: { database_id: NOTION_DATABASE_ID },
+      properties,
+    };
 
-    // 출간일
-    const dateProp = Object.entries(schema).find(
-      ([k]) => ["출간일", "출판일", "Date", "date", "날짜"].includes(k)
-    );
-    if (dateProp && publishedDate) {
-      properties[dateProp[0]] = { date: { start: publishedDate } };
-    }
-
-    // 유형 → "책"
-    const typeProp = Object.entries(schema).find(
-      ([k]) => ["유형", "타입", "Type", "type", "카테고리", "Category"].includes(k)
-    );
-    if (typeProp) {
-      if (typeProp[1].type === "select") {
-        properties[typeProp[0]] = { select: { name: "책" } };
-      } else if (typeProp[1].type === "multi_select") {
-        properties[typeProp[0]] = { multi_select: [{ name: "책" }] };
-      }
-    }
-
-    const body = { parent: { database_id: NOTION_DATABASE_ID }, properties };
-
+    // 커버 이미지
     if (thumbnail) {
       body.cover = { type: "external", external: { url: thumbnail } };
-      body.icon = { type: "external", external: { url: thumbnail } };
     }
 
     const createRes = await fetch("https://api.notion.com/v1/pages", {
