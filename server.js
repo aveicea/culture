@@ -61,32 +61,52 @@ app.get("/api/search", async (req, res) => {
         }
 
         // 카테고리에서 국가 + 장르 추출
-        // 예: "국내도서>소설/시/희곡>한국소설" → 국가: 한국, 장르: ["소설/시/희곡", "한국소설"]
-        // 예: "외국도서>영미소설>영국소설" → 국가: 영국/미국, 장르: ["영미소설", "영국소설"]
+        // 예: "국내도서>소설/시/희곡>독일소설" → 국가: 독일, 장르: ["소설"]
+        // 예: "외국도서>영미소설>영국소설" → 국가: 영국, 장르: ["소설"]
         const genres = [];
         let country = "";
+        const countryMap = [
+          ["한국", ["한국"]],
+          ["독일", ["독일", "독문"]],
+          ["영국", ["영국"]],
+          ["미국", ["미국"]],
+          ["프랑스", ["프랑스", "불문"]],
+          ["일본", ["일본", "일문"]],
+          ["중국", ["중국", "중문"]],
+          ["스페인", ["스페인"]],
+          ["러시아", ["러시아"]],
+          ["이탈리아", ["이탈리아"]],
+        ];
         if (categoryName) {
           const parts = categoryName.split(">");
           const top = parts[0]?.trim() || "";
-          if (top === "국내도서") {
-            country = "한국";
-          } else if (top.includes("일본")) {
-            country = "일본";
-          } else if (top.includes("영미") || top.includes("외국도서")) {
-            // 하위 카테고리에서 국가 힌트 찾기
-            const sub = parts.slice(1).join(" ").toLowerCase();
-            if (sub.includes("영국")) country = "영국";
-            else if (sub.includes("미국")) country = "미국";
-            else if (sub.includes("프랑스") || sub.includes("불문")) country = "프랑스";
-            else if (sub.includes("독일") || sub.includes("독문")) country = "독일";
-            else if (sub.includes("일본") || sub.includes("일문")) country = "일본";
-            else if (sub.includes("중국") || sub.includes("중문")) country = "중국";
-            else if (sub.includes("스페인")) country = "스페인";
-            else if (sub.includes("러시아")) country = "러시아";
+          // 모든 하위 카테고리에서 국가 힌트 찾기 (국내도서여도 "독일소설" 등 확인)
+          const allSub = parts.slice(1).join(" ");
+          for (const [name, keywords] of countryMap) {
+            if (name === "한국") continue; // 한국은 기본값으로만
+            if (keywords.some((kw) => allSub.includes(kw))) {
+              country = name;
+              break;
+            }
           }
+          // 외국 국가를 못 찾았으면 국내도서일 때만 한국
+          if (!country && top === "국내도서") country = "한국";
+
+          // 장르 추출: 복합 카테고리 정리 + 국가명 접두사 제거
+          const countryPrefixes = countryMap.flatMap(([, kws]) => kws);
           for (let i = 1; i < parts.length; i++) {
-            const g = parts[i].trim();
-            if (g) genres.push(g);
+            let g = parts[i].trim();
+            if (!g) continue;
+            // "소설/시/희곡" → "소설"
+            if (g.includes("/")) g = g.split("/")[0].trim();
+            // "독일소설" → "소설", "영미소설" → "소설", "한국소설" → "소설"
+            for (const prefix of [...countryPrefixes, "영미"]) {
+              if (g.startsWith(prefix)) {
+                g = g.slice(prefix.length).trim();
+                break;
+              }
+            }
+            if (g && !genres.includes(g)) genres.push(g);
           }
         }
 
