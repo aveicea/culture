@@ -106,18 +106,19 @@ body {
 .suggestions {
   list-style: none;
   background: #fff;
-  border: 1px solid #e3e2de;
-  border-top: none;
   border-radius: 0 0 8px 8px;
   margin-top: -4px;
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.2s ease;
+  border: none;
 }
 
 .suggestions.show {
   max-height: 220px;
   overflow-y: auto;
+  border: 1px solid #e3e2de;
+  border-top: none;
 }
 
 .suggestion-item {
