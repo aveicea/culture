@@ -92,23 +92,40 @@ app.get("/api/search", async (req, res) => {
           // 외국 국가를 못 찾았으면 국내도서일 때만 한국
           if (!country && top === "국내도서") country = "한국";
 
-          // 장르 추출: "소설/시/희곡" → ["소설", "시", "희곡"] + 국가명 접두사 제거
-          const countryPrefixes = [...countryMap.flatMap(([, kws]) => kws), "영미"];
+          // 장르 추출: 알라딘 카테고리 → 노션 장르 옵션에 매핑
+          const genreMap = {
+            // 알라딘 카테고리 키워드 → 노션 장르명
+            "소설": "소설", "에세이": "에세이", "시": "시",
+            "경제경영": "경제/경영", "경제": "경제/경영", "경영": "경제/경영",
+            "인문학": "인문학", "인문": "인문학",
+            "자기계발": "자기계발", "자기啓발": "자기계발",
+            "사회과학": "사회과학", "사회": "사회과학",
+            "역사": "역사", "과학": "과학", "심리학": "심리학", "심리": "심리학",
+            "SF": "SF", "과학소설": "SF",
+            "판타지": "판타지", "추리": "미스터리", "미스터리": "미스터리",
+            "스릴러": "스릴러", "로맨스": "로맨스", "공포": "스릴러",
+            "모험": "모험", "액션": "액션", "코미디": "코미디",
+            "가족": "가족", "드라마": "드라마", "범죄": "범죄",
+            "전쟁": "전쟁", "뮤지컬": "뮤지컬", "애니메이션": "애니메이션",
+          };
+          const countryPrefixes = [...countryMap.flatMap(([, kws]) => kws), "영미", "세계의"];
           for (let i = 1; i < parts.length; i++) {
             const segment = parts[i].trim();
             if (!segment) continue;
-            // "소설/시/희곡" → ["소설", "시", "희곡"] 각각 분리
             const subGenres = segment.includes("/") ? segment.split("/") : [segment];
             for (let sg of subGenres) {
               sg = sg.trim();
-              // "독일소설" → "소설", "영미소설" → "소설"
+              // 국가명 접두사 제거: "독일소설" → "소설"
               for (const prefix of countryPrefixes) {
                 if (sg.startsWith(prefix)) {
                   sg = sg.slice(prefix.length).trim();
                   break;
                 }
               }
-              if (sg && !genres.includes(sg)) genres.push(sg);
+              if (!sg) continue;
+              // 노션 기존 장르에 매핑 (없으면 그대로 추가)
+              const mapped = genreMap[sg] || sg;
+              if (mapped && !genres.includes(mapped)) genres.push(mapped);
             }
           }
         }
