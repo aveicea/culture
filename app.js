@@ -59,10 +59,16 @@ async function doSearch() {
   try {
     let items = await fetchSearch(endpoint, query);
 
-    // 결과 없으면 띄어쓰기 제거/추가해서 재시도
+    // 결과 없으면 띄어쓰기 변형해서 재시도
     if (!items.length) {
-      const alt = query.includes(" ") ? query.replace(/\s+/g, "") : null;
-      if (alt) items = await fetchSearch(endpoint, alt);
+      if (query.includes(" ")) {
+        // 띄어쓰기 있으면 → 제거해서 재시도
+        items = await fetchSearch(endpoint, query.replace(/\s+/g, ""));
+      } else if (/[가-힣]{2,}/.test(query)) {
+        // 한글인데 띄어쓰기 없으면 → 글자 사이에 띄어쓰기 넣어서 재시도
+        // "미비포유" → "미 비 포 유" → TMDB가 "미 비포 유" 매칭
+        items = await fetchSearch(endpoint, query.split("").join(" "));
+      }
     }
 
     if (!items.length) {
