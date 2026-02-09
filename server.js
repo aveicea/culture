@@ -56,6 +56,42 @@ async function getKoreanName(personId, fallbackName) {
   }
 }
 
+// ─── 알라딘 도서 자동완성 ─────────────────────────────────────
+app.get("/api/suggest", async (req, res) => {
+  const { query, type } = req.query;
+  if (!query || query.length < 1) return res.json({ suggestions: [] });
+
+  try {
+    if (type === "movie" || type === "drama") {
+      const mediaType = type === "movie" ? "movie" : "tv";
+      const url = `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&language=ko-KR&query=${encodeURIComponent(query)}&page=1`;
+      const r = await fetch(url);
+      const data = await r.json();
+      const suggestions = (data.results || []).slice(0, 5).map((item) => ({
+        title: mediaType === "tv" ? item.name : item.title,
+        year: (item.release_date || item.first_air_date || "").slice(0, 4),
+      }));
+      return res.json({ suggestions });
+    }
+
+    // 책: 알라딘 검색
+    const url = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx`
+      + `?ttbkey=${ALADIN_TTB_KEY}`
+      + `&Query=${encodeURIComponent(query)}`
+      + `&QueryType=Keyword&MaxResults=5&start=1&SearchTarget=Book&output=js&Version=20131101`;
+    const r = await fetch(url);
+    const data = await r.json();
+    const suggestions = (data.item || []).map((item) => ({
+      title: item.title,
+      year: item.pubDate ? item.pubDate.slice(0, 4) : "",
+      author: item.author ? item.author.split(",")[0].replace(/\s*\(.*?\)\s*/g, "").trim() : "",
+    }));
+    return res.json({ suggestions });
+  } catch {
+    res.json({ suggestions: [] });
+  }
+});
+
 // ─── 알라딘 도서 검색 ───────────────────────────────────────
 app.get("/api/search", async (req, res) => {
   const { query } = req.query;
@@ -428,7 +464,7 @@ app.post("/api/check-duplicate", async (req, res) => {
 
 // ─── Notion 데이터베이스에 페이지 추가 ─────────────────────
 app.post("/api/add-to-notion", async (req, res) => {
-  const { type = "book", title, authors, thumbnail, publisher, isbn, genres, country, itemPage, runtime, totalEpisodes, publishedDate } = req.body;
+  const { type = "book", title, authors, thumbnail, publisher, isbn, genres, country, itemPage, runtime, totalEpisodes, publishedDate, rating, tense } = req.body;
 
   if (!title) return res.status(400).json({ error: "title은 필수입니다" });
 
@@ -470,6 +506,16 @@ app.post("/api/add-to-notion", async (req, res) => {
       properties["러닝타임"] = { number: runtime };
     } else if (type === "drama" && totalEpisodes > 0) {
       properties["러닝타임"] = { number: totalEpisodes };
+    }
+
+    // 평점 (select)
+    if (rating) {
+      properties["평점"] = { select: { name: rating } };
+    }
+
+    // 시제 (select)
+    if (tense) {
+      properties["시제"] = { select: { name: tense } };
     }
 
     // Files & media → 포스터/표지 이미지 (files)
