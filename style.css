@@ -182,25 +182,25 @@ body {
   padding: 3px 10px;
   border: 1px solid #e3e2de;
   border-radius: 4px;
-  background: #37352f;
+  background: transparent;
   font-size: 10px;
-  color: #fff;
+  color: #787774;
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
 }
 
 .tense-toggle:hover {
-  background: #555;
-  border-color: #555;
+  color: #37352f;
+  border-color: #ccc;
 }
 
 .tense-menu {
   display: none;
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: 0;
-  margin-top: 3px;
+  margin-bottom: 3px;
   background: #fff;
   border: 1px solid #e3e2de;
   border-radius: 6px;
@@ -256,7 +256,7 @@ body {
   color: #f59e0b;
 }
 
-.card-panel .add-btn {
+.tense-dropdown {
   margin-left: auto;
 }
 
