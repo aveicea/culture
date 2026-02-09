@@ -107,7 +107,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 420px;
+  max-height: 360px;
   overflow-y: auto;
 }
 
