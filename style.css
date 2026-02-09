@@ -18,6 +18,39 @@ body {
   padding: 16px;
 }
 
+/* ─── 탭 ───────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+  background: #f0efeb;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.tab {
+  flex: 1;
+  padding: 7px 0;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #787774;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tab:hover {
+  color: #37352f;
+}
+
+.tab.active {
+  background: #fff;
+  color: #37352f;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
 /* ─── 검색 ─────────────────────────────────── */
 .search-area {
   margin-bottom: 12px;

@@ -7,10 +7,33 @@ app.use(express.static(__dirname));
 
 const {
   ALADIN_TTB_KEY,
+  TMDB_API_KEY,
   NOTION_TOKEN,
   NOTION_DATABASE_ID,
   PORT = 3000,
 } = process.env;
+
+// ─── TMDB 장르 ID → 노션 장르 매핑 ─────────────────────────
+const tmdbGenreMap = {
+  // 영화 장르
+  28: "액션", 12: "모험", 16: "애니메이션", 35: "코미디",
+  80: "범죄", 99: null, 18: "드라마", 10751: "가족",
+  14: "판타지", 36: "역사", 27: "스릴러", 10402: "뮤지컬",
+  9648: "미스터리", 10749: "로맨스", 878: "SF",
+  10770: null, 53: "스릴러", 10752: "전쟁", 37: null,
+  // TV 장르
+  10759: "액션", 10762: null, 10763: null, 10764: null,
+  10765: "SF", 10766: "드라마", 10767: null, 10768: "전쟁",
+};
+
+// ─── TMDB 국가코드 → 한글 매핑 ─────────────────────────────
+const tmdbCountryMap = {
+  KR: "한국", US: "미국", GB: "영국", JP: "일본", CN: "중국",
+  FR: "프랑스", DE: "독일", IT: "이탈리아", ES: "스페인", RU: "러시아",
+  CA: "캐나다", AU: "호주", IN: "인도", TW: "대만", HK: "홍콩",
+  TH: "태국", SE: "스웨덴", DK: "덴마크", NO: "노르웨이",
+  BR: "브라질", MX: "멕시코", NZ: "뉴질랜드",
+};
 
 // ─── 알라딘 도서 검색 ───────────────────────────────────────
 app.get("/api/search", async (req, res) => {
@@ -238,6 +261,109 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
+// ─── TMDB 영화 검색 ──────────────────────────────────────
+app.get("/api/search-movie", async (req, res) => {
+  const { query } = req.query;
+  if (!query) return res.status(400).json({ error: "query 파라미터가 필요합니다" });
+
+  try {
+    const searchUrl = `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=ko-KR&query=${encodeURIComponent(query)}&page=1`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
+
+    const items = await Promise.all(
+      (searchData.results || []).slice(0, 10).map(async (item) => {
+        // 상세 조회 (감독, 런타임, 제작국가)
+        let directors = [];
+        let runtime = 0;
+        let countries = [];
+        try {
+          const detailUrl = `https://api.themoviedb.org/3/movie/${item.id}?api_key=${TMDB_API_KEY}&language=ko-KR&append_to_response=credits`;
+          const detailRes = await fetch(detailUrl);
+          const detail = await detailRes.json();
+          runtime = detail.runtime || 0;
+          countries = (detail.production_countries || []).map((c) => tmdbCountryMap[c.iso_3166_1] || c.name).filter(Boolean);
+          directors = (detail.credits?.crew || []).filter((c) => c.job === "Director").map((c) => c.name);
+        } catch {}
+
+        const genres = (item.genre_ids || []).map((id) => tmdbGenreMap[id]).filter(Boolean);
+        // 중복 제거
+        const uniqueGenres = [...new Set(genres)];
+
+        return {
+          type: "movie",
+          title: item.title,
+          originalTitle: item.original_title,
+          authors: directors,
+          thumbnail: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "",
+          publishedDate: item.release_date || "",
+          genres: uniqueGenres,
+          country: countries[0] || "",
+          runtime,
+          overview: item.overview,
+        };
+      })
+    );
+
+    res.json({ items });
+  } catch (err) {
+    console.error("TMDB 영화 검색 에러:", err);
+    res.status(500).json({ error: "영화 검색 중 오류가 발생했습니다" });
+  }
+});
+
+// ─── TMDB 드라마(TV) 검색 ────────────────────────────────
+app.get("/api/search-drama", async (req, res) => {
+  const { query } = req.query;
+  if (!query) return res.status(400).json({ error: "query 파라미터가 필요합니다" });
+
+  try {
+    const searchUrl = `https://api.themoviedb.org/3/search/tv?api_key=${TMDB_API_KEY}&language=ko-KR&query=${encodeURIComponent(query)}&page=1`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
+
+    const items = await Promise.all(
+      (searchData.results || []).slice(0, 10).map(async (item) => {
+        let creators = [];
+        let episodeRuntime = 0;
+        let totalEpisodes = 0;
+        let countries = [];
+        try {
+          const detailUrl = `https://api.themoviedb.org/3/tv/${item.id}?api_key=${TMDB_API_KEY}&language=ko-KR`;
+          const detailRes = await fetch(detailUrl);
+          const detail = await detailRes.json();
+          creators = (detail.created_by || []).map((c) => c.name);
+          episodeRuntime = detail.episode_run_time?.[0] || 0;
+          totalEpisodes = detail.number_of_episodes || 0;
+          countries = (detail.origin_country || []).map((c) => tmdbCountryMap[c] || c).filter(Boolean);
+        } catch {}
+
+        const genres = (item.genre_ids || []).map((id) => tmdbGenreMap[id]).filter(Boolean);
+        const uniqueGenres = [...new Set(genres)];
+
+        return {
+          type: "drama",
+          title: item.name,
+          originalTitle: item.original_name,
+          authors: creators,
+          thumbnail: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : "",
+          publishedDate: item.first_air_date || "",
+          genres: uniqueGenres,
+          country: countries[0] || "",
+          runtime: episodeRuntime,
+          totalEpisodes,
+          overview: item.overview,
+        };
+      })
+    );
+
+    res.json({ items });
+  } catch (err) {
+    console.error("TMDB 드라마 검색 에러:", err);
+    res.status(500).json({ error: "드라마 검색 중 오류가 발생했습니다" });
+  }
+});
+
 // ─── Notion 중복 체크 ────────────────────────────────────
 app.post("/api/check-duplicate", async (req, res) => {
   const { title, publishedDate } = req.body;
@@ -281,7 +407,7 @@ app.post("/api/check-duplicate", async (req, res) => {
 
 // ─── Notion 데이터베이스에 페이지 추가 ─────────────────────
 app.post("/api/add-to-notion", async (req, res) => {
-  const { title, authors, thumbnail, publisher, isbn, url: bookUrl, genres, country, itemPage, publishedDate } = req.body;
+  const { type = "book", title, authors, thumbnail, publisher, isbn, genres, country, itemPage, runtime, totalEpisodes, publishedDate } = req.body;
 
   if (!title) return res.status(400).json({ error: "title은 필수입니다" });
 
@@ -289,23 +415,24 @@ app.post("/api/add-to-notion", async (req, res) => {
     const properties = {};
     const today = new Date().toISOString().split("T")[0];
 
-    // 이름 (title) — 출판년도 포함: "제목 (2021)"
+    // 이름 (title) — 년도 포함: "제목 (2021)"
     const year = publishedDate ? publishedDate.slice(0, 4) : "";
     const displayTitle = year ? `${title} (${year})` : title;
     properties["이름"] = { title: [{ text: { content: displayTitle } }] };
 
-    // 분류 → "책" (select)
-    properties["분류"] = { select: { name: "책" } };
+    // 분류 (select)
+    const categoryMap = { book: "책", movie: "영화", drama: "드라마" };
+    properties["분류"] = { select: { name: categoryMap[type] || "책" } };
 
     // 날짜 → 오늘 날짜 (date)
     properties["날짜"] = { date: { start: today } };
 
-    // 작가/감독 (multi_select) — 기존에 있으면 그걸 사용, 없으면 새로 생성됨
+    // 작가/감독 (multi_select)
     if (authors?.length) {
       properties["작가/감독"] = { multi_select: authors.map((a) => ({ name: a })) };
     }
 
-    // 국가 (multi_select) — 알라딘 카테고리 기반
+    // 국가 (multi_select)
     if (country) {
       properties["국가"] = { multi_select: [{ name: country }] };
     }
@@ -315,19 +442,24 @@ app.post("/api/add-to-notion", async (req, res) => {
       properties["장르"] = { multi_select: genres.slice(0, 3).map((g) => ({ name: g })) };
     }
 
-    // 러닝타임 → 총 페이지 수 (number)
-    if (itemPage > 0) {
+    // 러닝타임 (number) — 책: 페이지수, 영화: 분, 드라마: 에피소드 수
+    if (type === "book" && itemPage > 0) {
       properties["러닝타임"] = { number: itemPage };
+    } else if (type === "movie" && runtime > 0) {
+      properties["러닝타임"] = { number: runtime };
+    } else if (type === "drama" && totalEpisodes > 0) {
+      properties["러닝타임"] = { number: totalEpisodes };
     }
 
-    // Files & media → 표지 이미지 (files)
+    // Files & media → 포스터/표지 이미지 (files)
     if (thumbnail) {
+      const imgName = type === "book" ? "표지" : "포스터";
       properties["Files & media"] = {
-        files: [{ type: "external", name: "표지", external: { url: thumbnail } }],
+        files: [{ type: "external", name: imgName, external: { url: thumbnail } }],
       };
     }
 
-    // 페이지 본문에 표지 이미지 삽입
+    // 페이지 본문에 이미지 삽입
     const children = [];
     if (thumbnail) {
       children.push({
