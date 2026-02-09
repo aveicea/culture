@@ -222,6 +222,13 @@ function renderItems(items) {
     panel.className = "card-panel";
     const currentTense = lastTense || tenseOptions[0] || "";
     panel.innerHTML = `
+      ${currentTense ? `
+      <div class="tense-dropdown">
+        <button class="tense-toggle" data-tense="${escapeHtml(currentTense)}">${escapeHtml(currentTense)} ▾</button>
+        <ul class="tense-menu">
+          ${tenseOptions.map((t) => `<li class="tense-option${t === currentTense ? ' selected' : ''}" data-tense="${escapeHtml(t)}">${escapeHtml(t)}</li>`).join("")}
+        </ul>
+      </div>` : ""}
       <div class="card-stars">
         <span class="star" data-value="1">★</span>
         <span class="star" data-value="2">★</span>
@@ -230,13 +237,6 @@ function renderItems(items) {
         <span class="star" data-value="5">★</span>
       </div>
       <button class="add-btn">추가</button>
-      ${currentTense ? `
-      <div class="tense-dropdown">
-        <button class="tense-toggle" data-tense="${escapeHtml(currentTense)}">${escapeHtml(currentTense)} ▾</button>
-        <ul class="tense-menu">
-          ${tenseOptions.map((t) => `<li class="tense-option${t === currentTense ? ' selected' : ''}" data-tense="${escapeHtml(t)}">${escapeHtml(t)}</li>`).join("")}
-        </ul>
-      </div>` : ""}
     `;
 
     // 카드 클릭 → 패널 토글
