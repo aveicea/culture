@@ -91,15 +91,27 @@ body {
   color: #b4b0a8;
 }
 
-.search-hint {
-  font-size: 11px;
-  color: #b4b0a8;
-  background: #eae8e4;
-  border-radius: 4px;
-  padding: 2px 6px;
-  flex-shrink: 0;
-  font-family: inherit;
+.search-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   border: none;
+  background: #2eaadc;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s;
+}
+
+.search-btn.visible {
+  display: flex;
+}
+
+.search-btn:hover {
+  background: #1a9bcd;
 }
 
 /* ─── 연관검색어 ──────────────────────────── */

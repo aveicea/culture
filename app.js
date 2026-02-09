@@ -1,5 +1,5 @@
 const searchInput = document.getElementById("searchInput");
-const searchHint = document.getElementById("searchHint");
+const searchBtn = document.getElementById("searchBtn");
 const resultsEl = document.getElementById("results");
 const toastEl = document.getElementById("toast");
 const suggestionsEl = document.getElementById("suggestions");
@@ -94,6 +94,14 @@ async function fetchSuggestions(query) {
 // ─── 검색 ─────────────────────────────────────
 let searchLock = false; // Enter 후 suggest 재표시 방지
 
+searchBtn.addEventListener("click", () => {
+  searchLock = true;
+  clearTimeout(suggestTimer);
+  if (suggestAbort) suggestAbort.abort();
+  closeSuggestions();
+  doSearch();
+});
+
 searchInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     searchLock = true;
@@ -107,7 +115,7 @@ searchInput.addEventListener("keydown", (e) => {
 
 searchInput.addEventListener("input", () => {
   const q = searchInput.value.trim();
-  searchHint.textContent = q ? "Enter" : "";
+  searchBtn.classList.toggle("visible", q.length > 0);
   searchLock = false; // 다시 타이핑하면 잠금 해제
 
   clearTimeout(suggestTimer);
@@ -128,7 +136,7 @@ async function doSearch() {
   const query = searchInput.value.trim();
   if (!query) return;
 
-  searchHint.textContent = "";
+  searchBtn.classList.remove("visible");
   resultsEl.innerHTML = '<div class="empty-state"><span class="spinner"></span> 검색 중...</div>';
 
   const endpoint = {
