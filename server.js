@@ -37,12 +37,20 @@ const tmdbCountryMap = {
 
 // ─── TMDB 인물 이름 한글 변환 ───────────────────────────────
 async function getKoreanName(personId, fallbackName) {
+  // 이미 한글이면 그대로 반환
+  if (/[가-힣]/.test(fallbackName)) return fallbackName;
   try {
-    const res = await fetch(`https://api.themoviedb.org/3/person/${personId}?api_key=${TMDB_API_KEY}&language=ko-KR`);
+    // 1) also_known_as에서 한글 이름 찾기
+    const res = await fetch(`https://api.themoviedb.org/3/person/${personId}?api_key=${TMDB_API_KEY}`);
     const data = await res.json();
-    // also_known_as에서 한글 이름 찾기
     const koreanName = (data.also_known_as || []).find((name) => /[가-힣]/.test(name));
-    return koreanName || fallbackName;
+    if (koreanName) return koreanName;
+    // 2) translations API에서 한국어 번역 이름 찾기
+    const transRes = await fetch(`https://api.themoviedb.org/3/person/${personId}/translations?api_key=${TMDB_API_KEY}`);
+    const transData = await transRes.json();
+    const koTrans = (transData.translations || []).find((t) => t.iso_639_1 === "ko");
+    if (koTrans?.data?.name) return koTrans.data.name;
+    return fallbackName;
   } catch {
     return fallbackName;
   }
