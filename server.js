@@ -35,6 +35,19 @@ const tmdbCountryMap = {
   BR: "브라질", MX: "멕시코", NZ: "뉴질랜드",
 };
 
+// ─── TMDB 인물 이름 한글 변환 ───────────────────────────────
+async function getKoreanName(personId, fallbackName) {
+  try {
+    const res = await fetch(`https://api.themoviedb.org/3/person/${personId}?api_key=${TMDB_API_KEY}&language=ko-KR`);
+    const data = await res.json();
+    // also_known_as에서 한글 이름 찾기
+    const koreanName = (data.also_known_as || []).find((name) => /[가-힣]/.test(name));
+    return koreanName || fallbackName;
+  } catch {
+    return fallbackName;
+  }
+}
+
 // ─── 알라딘 도서 검색 ───────────────────────────────────────
 app.get("/api/search", async (req, res) => {
   const { query } = req.query;
@@ -283,11 +296,11 @@ app.get("/api/search-movie", async (req, res) => {
           const detail = await detailRes.json();
           runtime = detail.runtime || 0;
           countries = (detail.production_countries || []).map((c) => tmdbCountryMap[c.iso_3166_1] || c.name).filter(Boolean);
-          directors = (detail.credits?.crew || []).filter((c) => c.job === "Director").map((c) => c.name);
+          const directorEntries = (detail.credits?.crew || []).filter((c) => c.job === "Director");
+          directors = await Promise.all(directorEntries.map((d) => getKoreanName(d.id, d.name)));
         } catch {}
 
         const genres = (item.genre_ids || []).map((id) => tmdbGenreMap[id]).filter(Boolean);
-        // 중복 제거
         const uniqueGenres = [...new Set(genres)];
 
         return {
@@ -332,7 +345,7 @@ app.get("/api/search-drama", async (req, res) => {
           const detailUrl = `https://api.themoviedb.org/3/tv/${item.id}?api_key=${TMDB_API_KEY}&language=ko-KR`;
           const detailRes = await fetch(detailUrl);
           const detail = await detailRes.json();
-          creators = (detail.created_by || []).map((c) => c.name);
+          creators = await Promise.all((detail.created_by || []).map((c) => getKoreanName(c.id, c.name)));
           episodeRuntime = detail.episode_run_time?.[0] || 0;
           totalEpisodes = detail.number_of_episodes || 0;
           countries = (detail.origin_country || []).map((c) => tmdbCountryMap[c] || c).filter(Boolean);
