@@ -88,6 +88,75 @@ async function addToNotion(book, card, btn) {
   card.classList.add("adding");
 
   try {
+    // 중복 체크
+    const checkRes = await fetch("/api/check-duplicate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: book.title, publishedDate: book.publishedDate }),
+    });
+    const checkData = await checkRes.json();
+
+    if (checkData.exists) {
+      card.classList.remove("adding");
+      btn.innerHTML = "";
+      btn.disabled = false;
+
+      // 기존 날짜 표시
+      const dateStr = checkData.date || "날짜 없음";
+      const confirmMsg = `이미 ${dateStr}에 추가된 책입니다.\n다시 추가할까요?`;
+
+      // 카드에 중복 알림 표시
+      showDuplicateConfirm(card, btn, book, dateStr);
+      return;
+    }
+
+    // 중복 없으면 바로 추가
+    await doAdd(book, card, btn);
+  } catch (err) {
+    showToast("네트워크 오류", true);
+    btn.textContent = "추가";
+    btn.disabled = false;
+    card.classList.remove("adding");
+  }
+}
+
+function showDuplicateConfirm(card, btn, book, dateStr) {
+  // 기존 버튼 숨기기
+  btn.style.display = "none";
+
+  // 중복 안내 + 버튼 영역
+  const confirmEl = document.createElement("div");
+  confirmEl.className = "dup-confirm";
+  confirmEl.innerHTML = `
+    <div class="dup-msg">${dateStr} 기록 있음</div>
+    <div class="dup-buttons">
+      <button class="dup-btn dup-yes">다시 추가</button>
+      <button class="dup-btn dup-no">취소</button>
+    </div>
+  `;
+
+  card.appendChild(confirmEl);
+
+  confirmEl.querySelector(".dup-yes").addEventListener("click", async (e) => {
+    e.stopPropagation();
+    confirmEl.remove();
+    btn.style.display = "";
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+    card.classList.add("adding");
+    await doAdd(book, card, btn);
+  });
+
+  confirmEl.querySelector(".dup-no").addEventListener("click", (e) => {
+    e.stopPropagation();
+    confirmEl.remove();
+    btn.style.display = "";
+    btn.textContent = "추가";
+  });
+}
+
+async function doAdd(book, card, btn) {
+  try {
     const res = await fetch("/api/add-to-notion", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

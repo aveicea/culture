@@ -156,11 +156,31 @@ app.get("/api/search", async (req, res) => {
             "동화책": null, "그림책": null, "챕터북": null, "코스북": null, "리더스": null,
             "공예": null, "수집": null, "해외잡지": null,
           };
+          // "소설/시/희곡" 같은 알라딘 그룹 카테고리는 분리하면 안 됨 (셋 중 하나지 동시가 아님)
+          // → 전체 문자열로 먼저 매핑 시도, 없을 때만 "/" 분리
+          const groupCategories = {
+            "소설/시/희곡": null, // 하위 카테고리에서 소설/시 구분
+            "건강/취미": "건강", "건강/스포츠": "건강",
+            "요리/살림": "요리", "경제/경영": "경제/경영",
+            "종교/역학": "종교", "종교/명상/점술": "종교",
+            "예술/대중문화": "예술", "인문/사회": "인문학",
+            "수험서/자격증": null, "만화/라이트노벨": "애니메이션",
+            "판타지/무협": "판타지", "컴퓨터/모바일": "IT",
+            "공예/취미/수집": null, "가정/원예/인테리어": null,
+            "ELT/어학/사전": null,
+          };
           const countryPrefixes = [...countryMap.flatMap(([, kws]) => kws), "영미", "세계의"];
           // 하위(구체적) 카테고리를 우선하기 위해 뒤에서부터 처리
           for (let i = parts.length - 1; i >= 1; i--) {
             const segment = parts[i].trim();
             if (!segment) continue;
+            // 그룹 카테고리는 통째로 매핑 (분리 X)
+            if (segment in groupCategories) {
+              const mapped = groupCategories[segment];
+              if (mapped && !genres.includes(mapped)) genres.push(mapped);
+              continue;
+            }
+            // 그 외는 "/" 분리 후 개별 매핑
             const subGenres = segment.includes("/") ? segment.split("/") : [segment];
             for (let sg of subGenres) {
               sg = sg.trim();
@@ -172,21 +192,14 @@ app.get("/api/search", async (req, res) => {
                 }
               }
               if (!sg) continue;
-              // 노션 기존 장르에 매핑 (매핑에 없으면 무시 → 새 장르 생성 방지)
               const mapped = genreMap[sg];
               if (mapped && !genres.includes(mapped)) genres.push(mapped);
             }
           }
-          // 구체적 장르가 잡혔으면 상위 포괄 장르(소설 등) 중복 제거
-          if (genres.length > 1) {
-            const specific = ["미스터리", "스릴러", "SF", "판타지", "로맨스", "액션", "모험", "범죄", "전쟁"];
-            if (genres.some((g) => specific.includes(g))) {
-              const toRemove = ["소설", "드라마"];
-              for (const r of toRemove) {
-                const idx = genres.indexOf(r);
-                if (idx > -1) genres.splice(idx, 1);
-              }
-            }
+          // 장르소설(SF, 미스터리 등)이면 "소설"도 함께 추가
+          const genreNovel = ["미스터리", "스릴러", "SF", "판타지", "로맨스", "액션", "모험", "범죄"];
+          if (genres.some((g) => genreNovel.includes(g)) && !genres.includes("소설")) {
+            genres.push("소설");
           }
         }
 
@@ -222,6 +235,48 @@ app.get("/api/search", async (req, res) => {
   } catch (err) {
     console.error("알라딘 API 에러:", err);
     res.status(500).json({ error: "도서 검색 중 오류가 발생했습니다" });
+  }
+});
+
+// ─── Notion 중복 체크 ────────────────────────────────────
+app.post("/api/check-duplicate", async (req, res) => {
+  const { title, publishedDate } = req.body;
+  if (!title) return res.status(400).json({ error: "title은 필수입니다" });
+
+  try {
+    const year = publishedDate ? publishedDate.slice(0, 4) : "";
+    const displayTitle = year ? `${title} (${year})` : title;
+
+    const searchRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}/query`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${NOTION_TOKEN}`,
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        filter: {
+          property: "이름",
+          title: { equals: displayTitle },
+        },
+      }),
+    });
+
+    if (!searchRes.ok) {
+      return res.json({ exists: false });
+    }
+
+    const data = await searchRes.json();
+    if (data.results?.length > 0) {
+      const existing = data.results[0];
+      const date = existing.properties["날짜"]?.date?.start || null;
+      return res.json({ exists: true, date, pageUrl: existing.url });
+    }
+
+    res.json({ exists: false });
+  } catch (err) {
+    console.error("중복 체크 에러:", err);
+    res.json({ exists: false });
   }
 });
 
