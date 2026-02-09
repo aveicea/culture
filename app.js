@@ -50,23 +50,21 @@ async function doSearch() {
   searchHint.textContent = "";
   resultsEl.innerHTML = '<div class="empty-state"><span class="spinner"></span> 검색 중...</div>';
 
-  const endpoints = {
-    book: `/api/search?query=${encodeURIComponent(query)}`,
-    movie: `/api/search-movie?query=${encodeURIComponent(query)}`,
-    drama: `/api/search-drama?query=${encodeURIComponent(query)}`,
-  };
+  const endpoint = {
+    book: "/api/search",
+    movie: "/api/search-movie",
+    drama: "/api/search-drama",
+  }[currentType];
 
   try {
-    const res = await fetch(endpoints[currentType]);
-    const data = await res.json();
+    let items = await fetchSearch(endpoint, query);
 
-    if (!res.ok) {
-      resultsEl.innerHTML = `<div class="empty-state">오류: ${data.error}</div>`;
-      return;
+    // 결과 없으면 띄어쓰기 제거/추가해서 재시도
+    if (!items.length) {
+      const alt = query.includes(" ") ? query.replace(/\s+/g, "") : null;
+      if (alt) items = await fetchSearch(endpoint, alt);
     }
 
-    // 책은 data.books, 영화/드라마는 data.items
-    const items = data.books || data.items || [];
     if (!items.length) {
       resultsEl.innerHTML = '<div class="empty-state">검색 결과가 없습니다</div>';
       return;
@@ -76,6 +74,13 @@ async function doSearch() {
   } catch (err) {
     resultsEl.innerHTML = '<div class="empty-state">네트워크 오류가 발생했습니다</div>';
   }
+}
+
+async function fetchSearch(endpoint, query) {
+  const res = await fetch(`${endpoint}?query=${encodeURIComponent(query)}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error);
+  return data.books || data.items || [];
 }
 
 // ─── 결과 렌더링 ──────────────────────────────
