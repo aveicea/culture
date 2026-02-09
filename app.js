@@ -3,13 +3,9 @@ const searchHint = document.getElementById("searchHint");
 const resultsEl = document.getElementById("results");
 const toastEl = document.getElementById("toast");
 const suggestionsEl = document.getElementById("suggestions");
-const starRating = document.getElementById("starRating");
-const tenseSelect = document.getElementById("tenseSelect");
 
 let toastTimer = null;
 let currentType = "book"; // book | movie | drama
-let selectedRating = 0; // 0 = 미선택
-let selectedTense = "과거완료형"; // 기본값
 let suggestTimer = null;
 let suggestAbort = null;
 
@@ -41,44 +37,6 @@ function showToast(msg, isError = false) {
     toastEl.className = "toast";
   }, 3000);
 }
-
-// ─── 별점 ─────────────────────────────────────
-starRating.querySelectorAll(".star").forEach((star) => {
-  star.addEventListener("click", () => {
-    const val = parseInt(star.dataset.value);
-    selectedRating = selectedRating === val ? 0 : val; // 같은 거 누르면 해제
-    updateStars();
-  });
-  star.addEventListener("mouseenter", () => {
-    const val = parseInt(star.dataset.value);
-    highlightStars(val);
-  });
-  star.addEventListener("mouseleave", () => {
-    updateStars();
-  });
-});
-
-function highlightStars(n) {
-  starRating.querySelectorAll(".star").forEach((s) => {
-    s.classList.toggle("hovered", parseInt(s.dataset.value) <= n);
-  });
-}
-
-function updateStars() {
-  starRating.querySelectorAll(".star").forEach((s) => {
-    s.classList.remove("hovered");
-    s.classList.toggle("active", parseInt(s.dataset.value) <= selectedRating);
-  });
-}
-
-// ─── 시제 ─────────────────────────────────────
-tenseSelect.querySelectorAll(".tense-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    tenseSelect.querySelector(".tense-btn.active")?.classList.remove("active");
-    btn.classList.add("active");
-    selectedTense = btn.dataset.tense;
-  });
-});
 
 // ─── 연관검색어 ───────────────────────────────
 function closeSuggestions() {
@@ -133,15 +91,15 @@ searchInput.addEventListener("input", () => {
   searchHint.textContent = q ? "Enter" : "";
 
   clearTimeout(suggestTimer);
-  if (q.length >= 2) {
-    suggestTimer = setTimeout(() => fetchSuggestions(q), 300);
+  if (q.length >= 1) {
+    suggestTimer = setTimeout(() => fetchSuggestions(q), 150);
   } else {
     closeSuggestions();
   }
 });
 
 searchInput.addEventListener("blur", () => {
-  setTimeout(closeSuggestions, 150);
+  setTimeout(closeSuggestions, 200);
 });
 
 async function doSearch() {
@@ -163,11 +121,8 @@ async function doSearch() {
     // 결과 없으면 띄어쓰기 변형해서 재시도
     if (!items.length) {
       if (query.includes(" ")) {
-        // 띄어쓰기 있으면 → 제거해서 재시도
         items = await fetchSearch(endpoint, query.replace(/\s+/g, ""));
       } else if (/[가-힣]{2,}/.test(query)) {
-        // 한글인데 띄어쓰기 없으면 → 글자 사이에 띄어쓰기 넣어서 재시도
-        // "미비포유" → "미 비 포 유" → TMDB가 "미 비포 유" 매칭
         items = await fetchSearch(endpoint, query.split("").join(" "));
       }
     }
@@ -227,15 +182,71 @@ function renderItems(items) {
         ${authorLabel ? `<div class="book-authors">${escapeHtml(authorLabel)}</div>` : ""}
         <div class="book-meta">${escapeHtml(metaParts.join(" · "))}</div>
       </div>
-      <button class="add-btn">추가</button>
+      <div class="card-actions">
+        <div class="card-options">
+          <div class="card-tense">
+            <button class="tense-btn" data-tense="미래형">미래형</button>
+            <button class="tense-btn" data-tense="진행형">진행형</button>
+            <button class="tense-btn active" data-tense="과거완료형">과거완료형</button>
+          </div>
+          <div class="card-stars">
+            <span class="star" data-value="1">★</span>
+            <span class="star" data-value="2">★</span>
+            <span class="star" data-value="3">★</span>
+            <span class="star" data-value="4">★</span>
+            <span class="star" data-value="5">★</span>
+          </div>
+        </div>
+        <button class="add-btn">추가</button>
+      </div>
     `;
 
+    // 시제 버튼 이벤트
+    const tenseBtns = card.querySelectorAll(".tense-btn");
+    tenseBtns.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        card.querySelector(".tense-btn.active")?.classList.remove("active");
+        btn.classList.add("active");
+      });
+    });
+
+    // 별점 이벤트
+    let cardRating = 0;
+    const stars = card.querySelectorAll(".star");
+    stars.forEach((star) => {
+      star.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const val = parseInt(star.dataset.value);
+        cardRating = cardRating === val ? 0 : val;
+        stars.forEach((s) => {
+          s.classList.remove("hovered");
+          s.classList.toggle("active", parseInt(s.dataset.value) <= cardRating);
+        });
+      });
+      star.addEventListener("mouseenter", () => {
+        const val = parseInt(star.dataset.value);
+        stars.forEach((s) => {
+          s.classList.toggle("hovered", parseInt(s.dataset.value) <= val);
+        });
+      });
+      star.addEventListener("mouseleave", () => {
+        stars.forEach((s) => {
+          s.classList.remove("hovered");
+          s.classList.toggle("active", parseInt(s.dataset.value) <= cardRating);
+        });
+      });
+    });
+
+    // 추가 버튼
     const btn = card.querySelector(".add-btn");
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       if (!item.type) item.type = currentType;
-      if (selectedRating > 0) item.rating = `${selectedRating}`;
-      if (selectedTense) item.tense = selectedTense;
+      // 해당 카드에서 시제/별점 읽기
+      const activeTense = card.querySelector(".tense-btn.active");
+      if (activeTense) item.tense = activeTense.dataset.tense;
+      if (cardRating > 0) item.rating = `${cardRating}`;
       addToNotion(item, card, btn);
     });
 

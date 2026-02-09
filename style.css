@@ -143,38 +143,56 @@ body {
   margin-left: 4px;
 }
 
-/* ─── 옵션 바 (평점 + 시제) ───────────────── */
-.option-bar {
+/* ─── 카드 내 액션 영역 (시제+별점+추가) ──── */
+.card-actions {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: #f7f6f3;
-  border-radius: 8px;
-}
-
-.option-group {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 6px;
-}
-
-.option-label {
-  font-size: 12px;
-  color: #787774;
-  font-weight: 500;
   flex-shrink: 0;
 }
 
-/* ─── 별점 ─────────────────────────────────── */
-.star-rating {
+.card-options {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.card-tense {
   display: flex;
   gap: 2px;
 }
 
+.tense-btn {
+  padding: 3px 7px;
+  border: 1px solid #e3e2de;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 10px;
+  color: #a5a29a;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.tense-btn:hover {
+  color: #37352f;
+  border-color: #ccc;
+}
+
+.tense-btn.active {
+  background: #37352f;
+  color: #fff;
+  border-color: #37352f;
+}
+
+.card-stars {
+  display: flex;
+  gap: 1px;
+}
+
 .star {
-  font-size: 18px;
+  font-size: 14px;
   color: #ddd;
   cursor: pointer;
   transition: color 0.1s, transform 0.1s;
@@ -191,40 +209,12 @@ body {
   color: #f59e0b;
 }
 
-/* ─── 시제 선택 ─────────────────────────────── */
-.tense-select {
-  display: flex;
-  gap: 3px;
-}
-
-.tense-btn {
-  padding: 4px 10px;
-  border: 1px solid #e3e2de;
-  border-radius: 5px;
-  background: transparent;
-  font-size: 11px;
-  color: #787774;
-  cursor: pointer;
-  transition: all 0.12s;
-}
-
-.tense-btn:hover {
-  color: #37352f;
-  border-color: #ccc;
-}
-
-.tense-btn.active {
-  background: #37352f;
-  color: #fff;
-  border-color: #37352f;
-}
-
 /* ─── 결과 리스트 ──────────────────────────── */
 .results {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 360px;
+  max-height: 480px;
   overflow-y: auto;
 }
 
