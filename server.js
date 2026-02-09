@@ -73,9 +73,12 @@ app.get("/api/tense-options", async (req, res) => {
     const groups = tenseProp.status?.groups || [];
     const allOptions = groups.flatMap((g) => g.option_ids || []);
     const optionsList = tenseProp.status?.options || [];
-    // 그룹 순서대로 옵션 반환
+    // 그룹 순서대로 옵션 반환, 그룹명(드랍 등) 제외
     const ordered = allOptions.map((id) => optionsList.find((o) => o.id === id)?.name).filter(Boolean);
-    res.json({ options: ordered.length ? ordered : optionsList.map((o) => o.name) });
+    const names = ordered.length ? ordered : optionsList.map((o) => o.name);
+    // "드랍" 등 의미 없는 기본 옵션 제외
+    const hidden = ["드랍", "Not started", "In progress", "Done"];
+    res.json({ options: names.filter((n) => !hidden.includes(n)) });
   } catch (err) {
     console.error("시제 옵션 조회 에러:", err);
     res.json({ options: [] });
