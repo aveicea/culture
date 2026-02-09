@@ -244,9 +244,7 @@ app.post("/api/check-duplicate", async (req, res) => {
   if (!title) return res.status(400).json({ error: "title은 필수입니다" });
 
   try {
-    const year = publishedDate ? publishedDate.slice(0, 4) : "";
-    const displayTitle = year ? `${title} (${year})` : title;
-
+    // 제목으로 포함 검색 (기존 기록이 년도 유무 상관없이 잡히도록)
     const searchRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}/query`, {
       method: "POST",
       headers: {
@@ -257,7 +255,7 @@ app.post("/api/check-duplicate", async (req, res) => {
       body: JSON.stringify({
         filter: {
           property: "이름",
-          title: { equals: displayTitle },
+          title: { contains: title },
         },
       }),
     });
@@ -270,7 +268,8 @@ app.post("/api/check-duplicate", async (req, res) => {
     if (data.results?.length > 0) {
       const existing = data.results[0];
       const date = existing.properties["날짜"]?.date?.start || null;
-      return res.json({ exists: true, date, pageUrl: existing.url });
+      const existingTitle = existing.properties["이름"]?.title?.[0]?.plain_text || "";
+      return res.json({ exists: true, date, existingTitle, pageUrl: existing.url });
     }
 
     res.json({ exists: false });
