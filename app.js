@@ -8,6 +8,13 @@ let toastTimer = null;
 let currentType = "book"; // book | movie | drama
 let suggestTimer = null;
 let suggestAbort = null;
+let tenseOptions = []; // 노션에서 가져온 시제 옵션
+
+// 시제 옵션을 노션 DB에서 가져오기
+fetch("/api/tense-options")
+  .then((r) => r.json())
+  .then((data) => { tenseOptions = data.options || []; })
+  .catch(() => {});
 
 const placeholders = {
   book: "책 제목 또는 저자를 검색하세요",
@@ -198,12 +205,11 @@ function renderItems(items) {
     // 펼침 패널 (클릭 시 표시)
     const panel = document.createElement("div");
     panel.className = "card-panel";
+    const tenseBtnsHtml = tenseOptions.map((t, i) =>
+      `<button class="tense-btn${i === tenseOptions.length - 1 ? ' active' : ''}" data-tense="${escapeHtml(t)}">${escapeHtml(t)}</button>`
+    ).join("");
     panel.innerHTML = `
-      <div class="card-tense">
-        <button class="tense-btn" data-tense="미래형">미래형</button>
-        <button class="tense-btn" data-tense="진행형">진행형</button>
-        <button class="tense-btn active" data-tense="과거완료형">과거완료형</button>
-      </div>
+      <div class="card-tense">${tenseBtnsHtml}</div>
       <div class="card-stars">
         <span class="star" data-value="1">★</span>
         <span class="star" data-value="2">★</span>

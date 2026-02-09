@@ -56,6 +56,32 @@ async function getKoreanName(personId, fallbackName) {
   }
 }
 
+// ─── 노션 DB 시제 옵션 조회 ───────────────────────────────────
+app.get("/api/tense-options", async (req, res) => {
+  try {
+    const dbRes = await fetch(`https://api.notion.com/v1/databases/${NOTION_DATABASE_ID}`, {
+      headers: {
+        Authorization: `Bearer ${NOTION_TOKEN}`,
+        "Notion-Version": "2022-06-28",
+      },
+    });
+    const db = await dbRes.json();
+    const tenseProp = db.properties?.["시제"];
+    if (!tenseProp || tenseProp.type !== "status") {
+      return res.json({ options: [] });
+    }
+    const groups = tenseProp.status?.groups || [];
+    const allOptions = groups.flatMap((g) => g.option_ids || []);
+    const optionsList = tenseProp.status?.options || [];
+    // 그룹 순서대로 옵션 반환
+    const ordered = allOptions.map((id) => optionsList.find((o) => o.id === id)?.name).filter(Boolean);
+    res.json({ options: ordered.length ? ordered : optionsList.map((o) => o.name) });
+  } catch (err) {
+    console.error("시제 옵션 조회 에러:", err);
+    res.json({ options: [] });
+  }
+});
+
 // ─── 알라딘 도서 자동완성 ─────────────────────────────────────
 app.get("/api/suggest", async (req, res) => {
   const { query, type } = req.query;
