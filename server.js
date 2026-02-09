@@ -124,7 +124,7 @@ app.get("/api/search", async (req, res) => {
 
 // ─── Notion 데이터베이스에 페이지 추가 ─────────────────────
 app.post("/api/add-to-notion", async (req, res) => {
-  const { title, authors, thumbnail, publisher, isbn, url: bookUrl, genres, country, itemPage } = req.body;
+  const { title, authors, thumbnail, publisher, isbn, url: bookUrl, genres, country, itemPage, publishedDate } = req.body;
 
   if (!title) return res.status(400).json({ error: "title은 필수입니다" });
 
@@ -132,8 +132,10 @@ app.post("/api/add-to-notion", async (req, res) => {
     const properties = {};
     const today = new Date().toISOString().split("T")[0];
 
-    // 이름 (title)
-    properties["이름"] = { title: [{ text: { content: title } }] };
+    // 이름 (title) — 출판년도 포함: "제목 (2021)"
+    const year = publishedDate ? publishedDate.slice(0, 4) : "";
+    const displayTitle = year ? `${title} (${year})` : title;
+    properties["이름"] = { title: [{ text: { content: displayTitle } }] };
 
     // 분류 → "책" (select)
     properties["분류"] = { select: { name: "책" } };
