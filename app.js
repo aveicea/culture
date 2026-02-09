@@ -65,7 +65,7 @@ function renderBooks(books) {
     card.innerHTML = `
       ${thumbHtml}
       <div class="book-info">
-        <div class="book-title">${escapeHtml(book.title)}</div>
+        <div class="book-title">${escapeHtml(book.title)}${book.publishedDate ? ` <span style="color:#a5a29a;font-weight:400">(${book.publishedDate.slice(0,4)})</span>` : ""}</div>
         <div class="book-authors">${escapeHtml(authorsStr)}</div>
         <div class="book-meta">${escapeHtml(metaParts)}</div>
       </div>
