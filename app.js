@@ -2,9 +2,16 @@ const searchInput = document.getElementById("searchInput");
 const searchHint = document.getElementById("searchHint");
 const resultsEl = document.getElementById("results");
 const toastEl = document.getElementById("toast");
+const suggestionsEl = document.getElementById("suggestions");
+const starRating = document.getElementById("starRating");
+const tenseSelect = document.getElementById("tenseSelect");
 
 let toastTimer = null;
 let currentType = "book"; // book | movie | drama
+let selectedRating = 0; // 0 = 미선택
+let selectedTense = "과거완료형"; // 기본값
+let suggestTimer = null;
+let suggestAbort = null;
 
 const placeholders = {
   book: "책 제목 또는 저자를 검색하세요",
@@ -20,6 +27,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
     currentType = tab.dataset.type;
     searchInput.placeholder = placeholders[currentType];
     resultsEl.innerHTML = "";
+    closeSuggestions();
     searchInput.focus();
   });
 });
@@ -34,13 +42,106 @@ function showToast(msg, isError = false) {
   }, 3000);
 }
 
+// ─── 별점 ─────────────────────────────────────
+starRating.querySelectorAll(".star").forEach((star) => {
+  star.addEventListener("click", () => {
+    const val = parseInt(star.dataset.value);
+    selectedRating = selectedRating === val ? 0 : val; // 같은 거 누르면 해제
+    updateStars();
+  });
+  star.addEventListener("mouseenter", () => {
+    const val = parseInt(star.dataset.value);
+    highlightStars(val);
+  });
+  star.addEventListener("mouseleave", () => {
+    updateStars();
+  });
+});
+
+function highlightStars(n) {
+  starRating.querySelectorAll(".star").forEach((s) => {
+    s.classList.toggle("hovered", parseInt(s.dataset.value) <= n);
+  });
+}
+
+function updateStars() {
+  starRating.querySelectorAll(".star").forEach((s) => {
+    s.classList.remove("hovered");
+    s.classList.toggle("active", parseInt(s.dataset.value) <= selectedRating);
+  });
+}
+
+// ─── 시제 ─────────────────────────────────────
+tenseSelect.querySelectorAll(".tense-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    tenseSelect.querySelector(".tense-btn.active")?.classList.remove("active");
+    btn.classList.add("active");
+    selectedTense = btn.dataset.tense;
+  });
+});
+
+// ─── 연관검색어 ───────────────────────────────
+function closeSuggestions() {
+  suggestionsEl.innerHTML = "";
+  suggestionsEl.classList.remove("show");
+}
+
+async function fetchSuggestions(query) {
+  if (suggestAbort) suggestAbort.abort();
+  suggestAbort = new AbortController();
+
+  try {
+    const res = await fetch(
+      `/api/suggest?query=${encodeURIComponent(query)}&type=${currentType}`,
+      { signal: suggestAbort.signal }
+    );
+    const data = await res.json();
+    if (!data.suggestions?.length) { closeSuggestions(); return; }
+
+    suggestionsEl.innerHTML = "";
+    data.suggestions.forEach((s) => {
+      const li = document.createElement("li");
+      li.className = "suggestion-item";
+      const yearStr = s.year ? ` <span class="suggest-year">(${s.year})</span>` : "";
+      const authorStr = s.author ? ` <span class="suggest-author">${escapeHtml(s.author)}</span>` : "";
+      li.innerHTML = `${escapeHtml(s.title)}${yearStr}${authorStr}`;
+      li.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        searchInput.value = s.title;
+        closeSuggestions();
+        doSearch();
+      });
+      suggestionsEl.appendChild(li);
+    });
+    suggestionsEl.classList.add("show");
+  } catch (err) {
+    if (err.name !== "AbortError") closeSuggestions();
+  }
+}
+
 // ─── 검색 ─────────────────────────────────────
 searchInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") doSearch();
+  if (e.key === "Enter") {
+    closeSuggestions();
+    doSearch();
+  }
+  if (e.key === "Escape") closeSuggestions();
 });
 
 searchInput.addEventListener("input", () => {
-  searchHint.textContent = searchInput.value.trim() ? "Enter" : "";
+  const q = searchInput.value.trim();
+  searchHint.textContent = q ? "Enter" : "";
+
+  clearTimeout(suggestTimer);
+  if (q.length >= 2) {
+    suggestTimer = setTimeout(() => fetchSuggestions(q), 300);
+  } else {
+    closeSuggestions();
+  }
+});
+
+searchInput.addEventListener("blur", () => {
+  setTimeout(closeSuggestions, 150);
 });
 
 async function doSearch() {
@@ -59,10 +160,16 @@ async function doSearch() {
   try {
     let items = await fetchSearch(endpoint, query);
 
-    // 결과 없으면 띄어쓰기 제거/추가해서 재시도
+    // 결과 없으면 띄어쓰기 변형해서 재시도
     if (!items.length) {
-      const alt = query.includes(" ") ? query.replace(/\s+/g, "") : null;
-      if (alt) items = await fetchSearch(endpoint, alt);
+      if (query.includes(" ")) {
+        // 띄어쓰기 있으면 → 제거해서 재시도
+        items = await fetchSearch(endpoint, query.replace(/\s+/g, ""));
+      } else if (/[가-힣]{2,}/.test(query)) {
+        // 한글인데 띄어쓰기 없으면 → 글자 사이에 띄어쓰기 넣어서 재시도
+        // "미비포유" → "미 비 포 유" → TMDB가 "미 비포 유" 매칭
+        items = await fetchSearch(endpoint, query.split("").join(" "));
+      }
     }
 
     if (!items.length) {
@@ -126,8 +233,9 @@ function renderItems(items) {
     const btn = card.querySelector(".add-btn");
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      // type 추가
       if (!item.type) item.type = currentType;
+      if (selectedRating > 0) item.rating = `${selectedRating}`;
+      if (selectedTense) item.tense = selectedTense;
       addToNotion(item, card, btn);
     });
 

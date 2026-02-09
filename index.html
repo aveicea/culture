@@ -25,6 +25,28 @@
         >
         <kbd class="search-hint" id="searchHint">Enter</kbd>
       </div>
+      <ul id="suggestions" class="suggestions"></ul>
+    </div>
+
+    <div class="option-bar">
+      <div class="option-group">
+        <span class="option-label">평점</span>
+        <div class="star-rating" id="starRating">
+          <span class="star" data-value="1">★</span>
+          <span class="star" data-value="2">★</span>
+          <span class="star" data-value="3">★</span>
+          <span class="star" data-value="4">★</span>
+          <span class="star" data-value="5">★</span>
+        </div>
+      </div>
+      <div class="option-group">
+        <span class="option-label">시제</span>
+        <div class="tense-select" id="tenseSelect">
+          <button class="tense-btn" data-tense="미래형">미래형</button>
+          <button class="tense-btn" data-tense="진행형">진행형</button>
+          <button class="tense-btn active" data-tense="과거완료형">과거완료형</button>
+        </div>
+      </div>
     </div>
 
     <div id="results" class="results"></div>
