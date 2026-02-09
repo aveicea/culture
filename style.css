@@ -143,38 +143,57 @@ body {
   margin-left: 4px;
 }
 
-/* ─── 옵션 바 (평점 + 시제) ───────────────── */
-.option-bar {
-  display: flex;
+/* ─── 카드 펼침 패널 ──────────────────────── */
+.book-card {
+  flex-wrap: wrap;
+}
+
+.card-panel {
+  display: none;
+  width: 100%;
+  padding: 8px 0 2px;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: #f7f6f3;
-  border-radius: 8px;
+  gap: 10px;
 }
 
-.option-group {
+.book-card.open .card-panel {
   display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.option-label {
-  font-size: 12px;
-  color: #787774;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-/* ─── 별점 ─────────────────────────────────── */
-.star-rating {
+.card-tense {
   display: flex;
   gap: 2px;
 }
 
+.tense-btn {
+  padding: 3px 8px;
+  border: 1px solid #e3e2de;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 10px;
+  color: #a5a29a;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.tense-btn:hover {
+  color: #37352f;
+  border-color: #ccc;
+}
+
+.tense-btn.active {
+  background: #37352f;
+  color: #fff;
+  border-color: #37352f;
+}
+
+.card-stars {
+  display: flex;
+  gap: 1px;
+}
+
 .star {
-  font-size: 18px;
+  font-size: 15px;
   color: #ddd;
   cursor: pointer;
   transition: color 0.1s, transform 0.1s;
@@ -191,32 +210,8 @@ body {
   color: #f59e0b;
 }
 
-/* ─── 시제 선택 ─────────────────────────────── */
-.tense-select {
-  display: flex;
-  gap: 3px;
-}
-
-.tense-btn {
-  padding: 4px 10px;
-  border: 1px solid #e3e2de;
-  border-radius: 5px;
-  background: transparent;
-  font-size: 11px;
-  color: #787774;
-  cursor: pointer;
-  transition: all 0.12s;
-}
-
-.tense-btn:hover {
-  color: #37352f;
-  border-color: #ccc;
-}
-
-.tense-btn.active {
-  background: #37352f;
-  color: #fff;
-  border-color: #37352f;
+.card-panel .add-btn {
+  margin-left: auto;
 }
 
 /* ─── 결과 리스트 ──────────────────────────── */
@@ -224,7 +219,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 360px;
+  max-height: 320px;
   overflow-y: auto;
 }
 
@@ -261,9 +256,13 @@ body {
   background: #f0fdf4;
 }
 
+.thumb-link {
+  flex-shrink: 0;
+}
+
 .book-thumb {
-  width: 44px;
-  height: 62px;
+  width: 40px;
+  height: 56px;
   border-radius: 4px;
   object-fit: cover;
   background: #f0efeb;
