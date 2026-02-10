@@ -25,6 +25,7 @@ fetch("/api/tense-options")
 
 const placeholders = {
   book: "책 제목 또는 저자를 검색하세요",
+  ebook: "이북 제목 또는 저자를 검색하세요",
   movie: "영화 제목을 검색하세요",
   drama: "드라마 제목을 검색하세요",
 };
@@ -141,6 +142,7 @@ async function doSearch() {
 
   const endpoint = {
     book: "/api/search",
+    ebook: "/api/search-ebook",
     movie: "/api/search-movie",
     drama: "/api/search-drama",
   }[currentType];
@@ -314,7 +316,7 @@ function renderItems(items) {
     const btn = panel.querySelector(".add-btn");
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (!item.type) item.type = currentType;
+      if (!item.type) item.type = currentType === "ebook" ? "book" : currentType;
       const tenseEl = panel.querySelector(".tense-toggle");
       if (tenseEl) item.tense = tenseEl.dataset.tense;
       if (cardRating > 0) item.rating = "⭐".repeat(cardRating);
