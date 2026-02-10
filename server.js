@@ -514,7 +514,7 @@ app.post("/api/add-to-notion", async (req, res) => {
     properties["이름"] = { title: [{ text: { content: displayTitle } }] };
 
     // 분류 (select)
-    const categoryMap = { book: "책", movie: "영화", drama: "드라마" };
+    const categoryMap = { book: "책", ebook: "웹소설", movie: "영화", drama: "드라마" };
     properties["분류"] = { select: { name: categoryMap[type] || "책" } };
 
     // 날짜 → 오늘 날짜 (date)

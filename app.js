@@ -316,7 +316,7 @@ function renderItems(items) {
     const btn = panel.querySelector(".add-btn");
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (!item.type) item.type = currentType === "ebook" ? "book" : currentType;
+      if (!item.type) item.type = currentType === "ebook" ? "ebook" : currentType;
       const tenseEl = panel.querySelector(".tense-toggle");
       if (tenseEl) item.tense = tenseEl.dataset.tense;
       if (cardRating > 0) item.rating = "⭐".repeat(cardRating);
