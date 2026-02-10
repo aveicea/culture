@@ -169,10 +169,18 @@ async function doSearch() {
 }
 
 async function fetchSearch(endpoint, query) {
-  const res = await fetch(`${endpoint}?query=${encodeURIComponent(query)}`);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error);
-  return data.books || data.items || [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(`${endpoint}?query=${encodeURIComponent(query)}`, { signal: controller.signal });
+    clearTimeout(timeout);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    return data.books || data.items || [];
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
 }
 
 // ─── 결과 렌더링 ──────────────────────────────
@@ -309,7 +317,7 @@ function renderItems(items) {
       if (!item.type) item.type = currentType;
       const tenseEl = panel.querySelector(".tense-toggle");
       if (tenseEl) item.tense = tenseEl.dataset.tense;
-      if (cardRating > 0) item.rating = `${cardRating}`;
+      if (cardRating > 0) item.rating = "⭐".repeat(cardRating);
       addToNotion(item, card, btn);
     });
 
