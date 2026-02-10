@@ -103,11 +103,12 @@ app.get("/api/suggest", async (req, res) => {
       return res.json({ suggestions });
     }
 
-    // 책: 알라딘 검색
+    // 책/이북: 알라딘 검색
+    const searchTarget = type === "ebook" ? "eBook" : "Book";
     const url = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx`
       + `?ttbkey=${ALADIN_TTB_KEY}`
       + `&Query=${encodeURIComponent(query)}`
-      + `&QueryType=Keyword&MaxResults=5&start=1&SearchTarget=Book&output=js&Version=20131101`;
+      + `&QueryType=Keyword&MaxResults=5&start=1&SearchTarget=${searchTarget}&output=js&Version=20131101`;
     const r = await fetch(url);
     const data = await r.json();
     const suggestions = (data.item || []).map((item) => ({
@@ -121,20 +122,20 @@ app.get("/api/suggest", async (req, res) => {
   }
 });
 
-// ─── 알라딘 도서 검색 ───────────────────────────────────────
-app.get("/api/search", async (req, res) => {
-  const { query } = req.query;
-  if (!query) return res.status(400).json({ error: "query 파라미터가 필요합니다" });
+// ─── 알라딘 도서/이북 검색 ─────────────────────────────────────
+function aladinSearchHandler(searchTarget) {
+  return async (req, res) => {
+    const { query } = req.query;
+    if (!query) return res.status(400).json({ error: "query 파라미터가 필요합니다" });
 
-  try {
-    // 검색 API
-    const searchUrl = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx`
-      + `?ttbkey=${ALADIN_TTB_KEY}`
-      + `&Query=${encodeURIComponent(query)}`
-      + `&QueryType=Keyword`
-      + `&MaxResults=10`
-      + `&start=1`
-      + `&SearchTarget=Book`
+    try {
+      const searchUrl = `http://www.aladin.co.kr/ttb/api/ItemSearch.aspx`
+        + `?ttbkey=${ALADIN_TTB_KEY}`
+        + `&Query=${encodeURIComponent(query)}`
+        + `&QueryType=Keyword`
+        + `&MaxResults=10`
+        + `&start=1`
+        + `&SearchTarget=${searchTarget}`
       + `&output=js`
       + `&Version=20131101`
       + `&Cover=Big`;
@@ -340,12 +341,16 @@ app.get("/api/search", async (req, res) => {
       })
     );
 
-    res.json({ books });
-  } catch (err) {
-    console.error("알라딘 API 에러:", err);
-    res.status(500).json({ error: "도서 검색 중 오류가 발생했습니다" });
-  }
-});
+      res.json({ books });
+    } catch (err) {
+      console.error("알라딘 API 에러:", err);
+      res.status(500).json({ error: "검색 중 오류가 발생했습니다" });
+    }
+  };
+}
+
+app.get("/api/search", aladinSearchHandler("Book"));
+app.get("/api/search-ebook", aladinSearchHandler("eBook"));
 
 // ─── TMDB 영화 검색 ──────────────────────────────────────
 app.get("/api/search-movie", async (req, res) => {
