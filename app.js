@@ -371,7 +371,7 @@ function showDuplicateConfirm(card, btn, item, dateStr, existingTitle, pageId) {
     <div class="dup-msg">"${escapeHtml(existingTitle)}" ${dateStr} 기록 있음</div>
     <div class="dup-buttons">
       ${pageId ? '<button class="dup-btn dup-edit">수정</button>' : ''}
-      <button class="dup-btn dup-yes">다시 추가</button>
+      ${pageId ? '<button class="dup-btn dup-rewatch">재관람</button>' : ''}
       <button class="dup-btn dup-no">취소</button>
     </div>
   `;
@@ -400,15 +400,19 @@ function showDuplicateConfirm(card, btn, item, dateStr, existingTitle, pageId) {
     });
   }
 
-  confirmEl.querySelector(".dup-yes").addEventListener("click", async (e) => {
-    e.stopPropagation();
-    confirmEl.remove();
-    btn.style.display = "";
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
-    card.classList.add("adding");
-    await doAdd(item, card, btn);
-  });
+  // 재관람 버튼
+  const rewatchBtn = confirmEl.querySelector(".dup-rewatch");
+  if (rewatchBtn) {
+    rewatchBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      confirmEl.remove();
+      btn.style.display = "";
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+      card.classList.add("adding");
+      await doRewatch(pageId, item, card, btn);
+    });
+  }
 
   confirmEl.querySelector(".dup-no").addEventListener("click", (e) => {
     e.stopPropagation();
@@ -440,6 +444,36 @@ async function doAdd(item, card, btn) {
     card.classList.remove("adding");
     card.classList.add("added");
     showToast(`"${item.title}" 저장 완료`);
+  } catch (err) {
+    showToast("네트워크 오류", true);
+    btn.textContent = "추가";
+    btn.disabled = false;
+    card.classList.remove("adding");
+  }
+}
+
+async function doRewatch(pageId, item, card, btn) {
+  try {
+    const res = await fetch("/api/rewatch-notion", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pageId }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast(`실패: ${data.error}`, true);
+      btn.textContent = "추가";
+      btn.disabled = false;
+      card.classList.remove("adding");
+      return;
+    }
+
+    btn.textContent = "재관람 완료";
+    btn.className = "add-btn done";
+    card.classList.remove("adding");
+    card.classList.add("added");
+    showToast(`"${item.title}" 재관람 기록 완료`);
   } catch (err) {
     showToast("네트워크 오류", true);
     btn.textContent = "추가";

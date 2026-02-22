@@ -646,6 +646,58 @@ app.patch("/api/update-notion", async (req, res) => {
   }
 });
 
+// ─── Notion 재관람 날짜 추가 ──────────────────────────────
+app.patch("/api/rewatch-notion", async (req, res) => {
+  const { pageId } = req.body;
+  if (!pageId) return res.status(400).json({ error: "pageId는 필수입니다" });
+
+  try {
+    // 기존 페이지에서 재관람 속성 읽기
+    const pageRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+      headers: {
+        Authorization: `Bearer ${NOTION_TOKEN}`,
+        "Notion-Version": "2022-06-28",
+      },
+    });
+    const pageData = await pageRes.json();
+    const existing = pageData.properties?.["재관람"]?.rich_text?.[0]?.plain_text || "";
+
+    // 오늘 날짜 YYMMDD 형식
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(2);
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const today = `${yy}${mm}${dd}`;
+
+    const newValue = existing ? `${existing}, ${today}` : today;
+
+    const updateRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${NOTION_TOKEN}`,
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        properties: {
+          "재관람": { rich_text: [{ text: { content: newValue } }] },
+        },
+      }),
+    });
+
+    if (!updateRes.ok) {
+      const text = await updateRes.text();
+      return res.status(updateRes.status).json({ error: `재관람 추가 실패: ${text}` });
+    }
+
+    const page = await updateRes.json();
+    res.json({ success: true, pageId: page.id, newValue });
+  } catch (err) {
+    console.error("재관람 추가 에러:", err);
+    res.status(500).json({ error: "재관람 날짜 추가 중 오류가 발생했습니다" });
+  }
+});
+
 // 로컬 실행용
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {

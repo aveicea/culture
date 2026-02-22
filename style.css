@@ -468,6 +468,12 @@ body {
   transition: all 0.12s;
 }
 
+.dup-btn.dup-rewatch:hover {
+  background: #0f7b6c;
+  color: #fff;
+  border-color: #0f7b6c;
+}
+
 .dup-btn.dup-edit:hover {
   background: #f59e0b;
   color: #fff;
