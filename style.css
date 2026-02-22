@@ -444,6 +444,7 @@ body {
   align-items: flex-end;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .dup-msg {
