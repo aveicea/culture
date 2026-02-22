@@ -24,10 +24,10 @@ fetch("/api/tense-options")
   .catch(() => {});
 
 const placeholders = {
-  book: "책 제목 또는 저자를 검색하세요",
-  ebook: "이북 제목 또는 저자를 검색하세요",
-  movie: "영화 제목을 검색하세요",
-  drama: "드라마 제목을 검색하세요",
+  book: "",
+  ebook: "",
+  movie: "",
+  drama: "",
 };
 
 // ─── 탭 ───────────────────────────────────────
