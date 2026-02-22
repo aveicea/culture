@@ -488,7 +488,7 @@ app.post("/api/check-duplicate", async (req, res) => {
       const existing = data.results[0];
       const date = existing.properties["날짜"]?.date?.start || null;
       const existingTitle = existing.properties["이름"]?.title?.[0]?.plain_text || "";
-      return res.json({ exists: true, date, existingTitle, pageUrl: existing.url });
+      return res.json({ exists: true, date, existingTitle, pageId: existing.id, pageUrl: existing.url });
     }
 
     res.json({ exists: false });
@@ -598,6 +598,51 @@ app.post("/api/add-to-notion", async (req, res) => {
   } catch (err) {
     console.error("Notion API 에러:", err);
     res.status(500).json({ error: "Notion 페이지 생성 중 오류가 발생했습니다" });
+  }
+});
+
+// ─── Notion 기존 페이지 수정 ──────────────────────────────
+app.patch("/api/update-notion", async (req, res) => {
+  const { pageId, rating, tense } = req.body;
+  if (!pageId) return res.status(400).json({ error: "pageId는 필수입니다" });
+
+  try {
+    const properties = {};
+    const today = new Date().toISOString().split("T")[0];
+
+    // 날짜 업데이트
+    properties["날짜"] = { date: { start: today } };
+
+    // 평점
+    if (rating) {
+      properties["평점"] = { select: { name: rating } };
+    }
+
+    // 시제
+    if (tense) {
+      properties["시제"] = { status: { name: tense } };
+    }
+
+    const updateRes = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${NOTION_TOKEN}`,
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ properties }),
+    });
+
+    if (!updateRes.ok) {
+      const text = await updateRes.text();
+      return res.status(updateRes.status).json({ error: `수정 실패: ${text}` });
+    }
+
+    const page = await updateRes.json();
+    res.json({ success: true, pageId: page.id, url: page.url });
+  } catch (err) {
+    console.error("Notion 수정 에러:", err);
+    res.status(500).json({ error: "Notion 페이지 수정 중 오류가 발생했습니다" });
   }
 });
 

@@ -349,7 +349,7 @@ async function addToNotion(item, card, btn) {
 
       const dateStr = checkData.date || "날짜 없음";
       const existingTitle = checkData.existingTitle || item.title;
-      showDuplicateConfirm(card, btn, item, dateStr, existingTitle);
+      showDuplicateConfirm(card, btn, item, dateStr, existingTitle, checkData.pageId);
       return;
     }
 
@@ -362,7 +362,7 @@ async function addToNotion(item, card, btn) {
   }
 }
 
-function showDuplicateConfirm(card, btn, item, dateStr, existingTitle) {
+function showDuplicateConfirm(card, btn, item, dateStr, existingTitle, pageId) {
   btn.style.display = "none";
 
   const confirmEl = document.createElement("div");
@@ -370,12 +370,35 @@ function showDuplicateConfirm(card, btn, item, dateStr, existingTitle) {
   confirmEl.innerHTML = `
     <div class="dup-msg">"${escapeHtml(existingTitle)}" ${dateStr} 기록 있음</div>
     <div class="dup-buttons">
+      ${pageId ? '<button class="dup-btn dup-edit">수정</button>' : ''}
       <button class="dup-btn dup-yes">다시 추가</button>
       <button class="dup-btn dup-no">취소</button>
     </div>
   `;
 
   card.appendChild(confirmEl);
+
+  // 수정 버튼
+  const editBtn = confirmEl.querySelector(".dup-edit");
+  if (editBtn) {
+    editBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      confirmEl.remove();
+      btn.style.display = "";
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+      card.classList.add("adding");
+
+      // 카드에서 시제/별점 읽기
+      const panel = card.querySelector(".card-panel");
+      const tenseEl = panel?.querySelector(".tense-toggle");
+      const tense = tenseEl ? tenseEl.dataset.tense : undefined;
+      const stars = panel?.querySelectorAll(".star.active");
+      const rating = stars?.length > 0 ? "⭐".repeat(stars.length) : undefined;
+
+      await doUpdate(pageId, { tense, rating }, item, card, btn);
+    });
+  }
 
   confirmEl.querySelector(".dup-yes").addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -417,6 +440,36 @@ async function doAdd(item, card, btn) {
     card.classList.remove("adding");
     card.classList.add("added");
     showToast(`"${item.title}" 저장 완료`);
+  } catch (err) {
+    showToast("네트워크 오류", true);
+    btn.textContent = "추가";
+    btn.disabled = false;
+    card.classList.remove("adding");
+  }
+}
+
+async function doUpdate(pageId, { tense, rating }, item, card, btn) {
+  try {
+    const res = await fetch("/api/update-notion", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pageId, tense, rating }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast(`실패: ${data.error}`, true);
+      btn.textContent = "추가";
+      btn.disabled = false;
+      card.classList.remove("adding");
+      return;
+    }
+
+    btn.textContent = "수정 완료";
+    btn.className = "add-btn done";
+    card.classList.remove("adding");
+    card.classList.add("added");
+    showToast(`"${item.title}" 수정 완료`);
   } catch (err) {
     showToast("네트워크 오류", true);
     btn.textContent = "추가";
