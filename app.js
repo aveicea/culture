@@ -367,8 +367,9 @@ function showDuplicateConfirm(card, btn, item, dateStr, existingTitle, pageId) {
 
   const confirmEl = document.createElement("div");
   confirmEl.className = "dup-confirm";
+  confirmEl.addEventListener("click", (e) => e.stopPropagation());
   confirmEl.innerHTML = `
-    <div class="dup-msg">"${escapeHtml(existingTitle)}" ${dateStr} 기록 있음</div>
+    <div class="dup-msg">${dateStr} 기록 있음</div>
     <div class="dup-buttons">
       ${pageId ? '<button class="dup-btn dup-edit">수정</button>' : ''}
       ${pageId ? '<button class="dup-btn dup-rewatch">재관람</button>' : ''}
@@ -376,7 +377,9 @@ function showDuplicateConfirm(card, btn, item, dateStr, existingTitle, pageId) {
     </div>
   `;
 
-  card.appendChild(confirmEl);
+  // card-panel 앞에 삽입 → 썸네일+정보와 같은 줄 오른쪽에 표시
+  const panel = card.querySelector(".card-panel");
+  card.insertBefore(confirmEl, panel);
 
   // 수정 버튼
   const editBtn = confirmEl.querySelector(".dup-edit");
